@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="Lernspaß" />
+  <meta name="theme-color" content="#f59e0b" />
+  <title>Lernspaß — 2. Klasse</title>
+
+  <!-- Home-Bildschirm-Icon (Emoji als Favicon) -->
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%90%9D%3C/text%3E%3C/svg%3E" />
+  <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%23fef3c7'/%3E%3Ctext x='50' y='75' font-size='65' text-anchor='middle'%3E%F0%9F%90%9D%3C/text%3E%3C/svg%3E" />
+
+  <!-- Tailwind über CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- React über CDN -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+
+  <!-- Babel, damit JSX direkt im Browser läuft (ohne Build-Schritt) -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      overscroll-behavior: none;
+      -webkit-tap-highlight-color: transparent;
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      user-select: none;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    @keyframes confettiFall {
+      0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+      100% { transform: translateY(400px) rotate(720deg); opacity: 0; }
+    }
+    @keyframes pop {
+      0% { transform: scale(0.8); }
+      50% { transform: scale(1.1); }
+      100% { transform: scale(1); }
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel" data-presets="react">
+    const { useState, useEffect, useRef } = React;
+
+    // ============================================================================
+    // AUFGABEN-GENERATOREN — LehrplanPLUS Bayern, 2. Klasse
+    // ============================================================================
+    const rand = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+    const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+    const shuffle = (arr) => [...arr].sort(() => Math.random() - 0.5);
+
+    function genMatheAufgabe() {
+      const typ = pick(["plus", "minus", "einmaleins", "vergleich", "zehner"]);
+      if (typ === "plus") {
+        const a = rand(10, 60);
+        const b = rand(5, 100 - a);
+        return { frage: `${a} + ${b} = ?`, antwort: a + b,
+          optionen: shuffle([a + b, a + b + 1, a + b - 2, a + b + 10]).map(String),
+          hinweis: "Tipp: Erst die Zehner, dann die Einer." };
+      }
+      if (typ === "minus") {
+        const a = rand(20, 100);
+        const b = rand(2, a - 1);
+        return { frage: `${a} − ${b} = ?`, antwort: a - b,
+          optionen: shuffle([a - b, a - b + 1, a - b - 1, a - b + 10]).map(String),
+          hinweis: "Tipp: Zähle rückwärts in Schritten." };
+      }
+      if (typ === "einmaleins") {
+        const reihe = pick([1, 2, 5, 10, 3, 4]);
+        const x = rand(1, 10);
+        return { frage: `${reihe} · ${x} = ?`, antwort: reihe * x,
+          optionen: shuffle([reihe * x, reihe * x + reihe, reihe * x - reihe, reihe * (x + 1) + 1]).map(String),
+          hinweis: `Die ${reihe}er-Reihe: immer +${reihe}.` };
+      }
+      if (typ === "vergleich") {
+        const a = rand(10, 99);
+        let b = rand(10, 99);
+        while (b === a) b = rand(10, 99);
+        return { frage: `Welches Zeichen passt?  ${a} ___ ${b}`, antwort: a > b ? ">" : "<",
+          optionen: shuffle([">", "<", "="]),
+          hinweis: "Die Spitze zeigt zur kleineren Zahl." };
+      }
+      const z = rand(2, 9), e = rand(1, 9);
+      return { frage: `${z} Zehner und ${e} Einer — welche Zahl ist das?`, antwort: z * 10 + e,
+        optionen: shuffle([z * 10 + e, e * 10 + z, z * 10 + e + 10, z * 10]).map(String),
+        hinweis: "Zehner stehen vorne, Einer hinten." };
+    }
+
+    const deutschAufgaben = [
+      { frage: "Welches Wort schreibt man groß?", optionen: ["hund", "Hund", "schnell", "rot"], antwort: "Hund", hinweis: "Nomen (Namenwörter) schreibt man groß." },
+      { frage: "Welches Wort ist ein Nomen?", optionen: ["laufen", "schön", "Apfel", "und"], antwort: "Apfel", hinweis: "Nomen sind Dinge, Personen, Tiere oder Pflanzen." },
+      { frage: "Welches Wort schreibt man groß?", optionen: ["tasche", "grün", "Schule", "essen"], antwort: "Schule", hinweis: "Ein Ort/Gebäude ist ein Nomen." },
+      { frage: "Wie schreibt man das Wort richtig?", optionen: ["Liebe", "Libe", "Liiebe", "Lieebe"], antwort: "Liebe", hinweis: "Langes i schreibt man oft 'ie'." },
+      { frage: "Wie schreibt man das Wort richtig?", optionen: ["Tier", "Tir", "Tihr", "Thier"], antwort: "Tier", hinweis: "Langes i = ie." },
+      { frage: "Wie schreibt man das Wort richtig?", optionen: ["Spil", "Spihl", "Spiel", "Spihel"], antwort: "Spiel", hinweis: "Langes i schreibt man 'ie'." },
+      { frage: "Welches Wort ist ein Verb (Tunwort)?", optionen: ["Baum", "rennen", "blau", "schnell"], antwort: "rennen", hinweis: "Verben sagen, was jemand tut." },
+      { frage: "Welches Wort ist ein Adjektiv (Wie-Wort)?", optionen: ["singen", "Katze", "fröhlich", "Tisch"], antwort: "fröhlich", hinweis: "Adjektive beschreiben, wie etwas ist." },
+      { frage: "Welcher Artikel passt? ___ Sonne", optionen: ["der", "die", "das"], antwort: "die", hinweis: "Sonne ist weiblich → die." },
+      { frage: "Welcher Artikel passt? ___ Hund", optionen: ["der", "die", "das"], antwort: "der", hinweis: "Hund ist männlich → der." },
+      { frage: "Welcher Artikel passt? ___ Kind", optionen: ["der", "die", "das"], antwort: "das", hinweis: "Kind ist sächlich → das." },
+      { frage: "Welcher Artikel passt? ___ Lehrerin", optionen: ["der", "die", "das"], antwort: "die", hinweis: "Lehrerin ist weiblich → die." },
+      { frage: "Wie viele Silben hat 'Sonnenblume'?", optionen: ["2", "3", "4", "5"], antwort: "4", hinweis: "Son-nen-blu-me — vier Silben." },
+      { frage: "Wie viele Silben hat 'Schule'?", optionen: ["1", "2", "3", "4"], antwort: "2", hinweis: "Schu-le — zwei Silben." },
+      { frage: "Wie schreibt man das Wort richtig?", optionen: ["Zucker", "Zuker", "Zukker", "Zukcer"], antwort: "Zucker", hinweis: "Nach kurzem Vokal: ck." },
+      { frage: "Wie schreibt man das Wort richtig?", optionen: ["Katse", "Kazze", "Katze", "Katzze"], antwort: "Katze", hinweis: "Nach kurzem Vokal: tz." },
+      { frage: "Welches Satzzeichen kommt ans Ende?  'Wie heißt du'", optionen: [".", "?", "!", ","], antwort: "?", hinweis: "Eine Frage endet mit '?'." },
+      { frage: "Welches Satzzeichen kommt ans Ende?  'Pass auf'", optionen: [".", "?", "!", ","], antwort: "!", hinweis: "Bei Ausrufen passt '!'." },
+      { frage: "Was reimt sich auf 'Haus'?", optionen: ["Hund", "Maus", "Tisch", "Auto"], antwort: "Maus", hinweis: "Haus — Maus, beide enden auf -aus." },
+      { frage: "Was reimt sich auf 'Katze'?", optionen: ["Hund", "Tatze", "Vogel", "Fisch"], antwort: "Tatze", hinweis: "Katze — Tatze, beide enden auf -atze." },
+      { frage: "Wie heißt die Mehrzahl von 'Buch'?", optionen: ["Buchs", "Bücher", "Buche", "Buchen"], antwort: "Bücher", hinweis: "Ein Buch — viele Bücher." },
+      { frage: "Wie heißt die Mehrzahl von 'Kind'?", optionen: ["Kinde", "Kinder", "Kindes", "Kindern"], antwort: "Kinder", hinweis: "Ein Kind — viele Kinder." },
+    ];
+
+    const hsuBienen = [
+      { frage: "Wie viele Beine hat eine Biene?", optionen: ["4", "6", "8", "10"], antwort: "6", hinweis: "Bienen sind Insekten — alle Insekten haben 6 Beine." },
+      { frage: "Wie viele Flügel hat eine Biene?", optionen: ["2", "4", "6", "8"], antwort: "4", hinweis: "Zwei vorne und zwei hinten — zusammen 4 Flügel." },
+      { frage: "In wie viele Teile ist der Körper einer Biene geteilt?", optionen: ["2", "3", "4", "5"], antwort: "3", hinweis: "Kopf, Brust und Hinterleib — drei Teile." },
+      { frage: "Womit sammelt die Biene Blütenstaub?", optionen: ["Mit den Flügeln", "Mit den Fühlern", "Mit den Beinen", "Mit dem Stachel"], antwort: "Mit den Beinen", hinweis: "An den Hinterbeinen sind die 'Pollenhöschen'." },
+      { frage: "Womit riecht und fühlt die Biene?", optionen: ["Mit den Augen", "Mit den Fühlern", "Mit den Flügeln", "Mit dem Stachel"], antwort: "Mit den Fühlern", hinweis: "Die Fühler heißen auch Antennen." },
+      { frage: "Womit saugt die Biene den Nektar aus den Blüten?", optionen: ["Mit dem Stachel", "Mit den Beinen", "Mit dem Rüssel", "Mit den Fühlern"], antwort: "Mit dem Rüssel", hinweis: "Der Rüssel ist wie ein Strohhalm." },
+      { frage: "Wer legt im Bienenvolk die Eier?", optionen: ["Die Arbeiterin", "Die Drohne", "Die Königin", "Der Imker"], antwort: "Die Königin", hinweis: "Es gibt nur EINE Königin pro Volk." },
+      { frage: "Wie nennt man die männlichen Bienen?", optionen: ["Drohnen", "Wespen", "Hummeln", "Königinnen"], antwort: "Drohnen", hinweis: "Drohnen haben keinen Stachel." },
+      { frage: "Wer macht im Bienenvolk fast die ganze Arbeit?", optionen: ["Die Königin", "Die Drohnen", "Die Arbeiterinnen", "Der Imker"], antwort: "Die Arbeiterinnen", hinweis: "Tausende Arbeiterinnen kümmern sich um alles." },
+      { frage: "Wie viele Königinnen gibt es in einem Bienenvolk?", optionen: ["Eine", "Zwei", "Zehn", "Hundert"], antwort: "Eine", hinweis: "Nur eine einzige Königin regiert das Volk." },
+      { frage: "Wo wohnen Honigbienen?", optionen: ["Im Ameisenhaufen", "Im Bienenstock", "In der Erde", "Im Vogelnest"], antwort: "Im Bienenstock", hinweis: "Imker bauen Bienenkästen — das sind Bienenstöcke." },
+      { frage: "Wie heißen die kleinen Räume, in denen Bienen Honig lagern und ihre Babys großziehen?", optionen: ["Höhlen", "Waben", "Nester", "Töpfe"], antwort: "Waben", hinweis: "Die sechseckigen Zellen heißen Waben." },
+      { frage: "Welche Form haben die Waben einer Biene?", optionen: ["Rund", "Viereckig", "Sechseckig", "Dreieckig"], antwort: "Sechseckig", hinweis: "Sechs Ecken — eine schlaue Form, die viel Platz spart." },
+      { frage: "Was machen Bienen aus Nektar?", optionen: ["Milch", "Honig", "Wasser", "Saft"], antwort: "Honig", hinweis: "Im Bienenstock wird Nektar zu Honig." },
+      { frage: "Woraus bauen Bienen ihre Waben?", optionen: ["Aus Holz", "Aus Wachs", "Aus Erde", "Aus Papier"], antwort: "Aus Wachs", hinweis: "Bienen schwitzen das Wachs selbst aus dem Bauch." },
+      { frage: "Warum sind Bienen wichtig für die Natur?", optionen: ["Sie machen Lärm", "Sie bestäuben Blüten", "Sie fressen Schädlinge", "Sie bauen Nester für Vögel"], antwort: "Sie bestäuben Blüten", hinweis: "Ohne Bestäubung gäbe es kaum Obst und Gemüse." },
+      { frage: "Was heißt 'bestäuben'?", optionen: ["Staub wegmachen", "Blütenstaub von Blüte zu Blüte tragen", "Honig sammeln", "Wasser holen"], antwort: "Blütenstaub von Blüte zu Blüte tragen", hinweis: "So entstehen aus Blüten Früchte." },
+      { frage: "Was passiert, wenn keine Bienen mehr Blüten bestäuben?", optionen: ["Es regnet mehr", "Es wachsen weniger Früchte", "Es wird wärmer", "Nichts"], antwort: "Es wachsen weniger Früchte", hinweis: "Äpfel, Kirschen, Erdbeeren brauchen Bienen." },
+      { frage: "Wer kümmert sich um Bienen und holt den Honig?", optionen: ["Der Bauer", "Der Förster", "Der Imker", "Der Gärtner"], antwort: "Der Imker", hinweis: "Imker pflegen die Bienenvölker." },
+      { frage: "Wie tanzen Bienen, um anderen den Weg zu Blüten zu zeigen?", optionen: ["Sie pfeifen", "Sie schreiben", "Sie tanzen einen Schwänzeltanz", "Sie rufen laut"], antwort: "Sie tanzen einen Schwänzeltanz", hinweis: "Mit dem Tanz erzählen sie, wo das Futter ist." },
+      { frage: "Was passiert mit der Biene, wenn sie einen Menschen sticht?", optionen: ["Nichts", "Sie stirbt", "Sie wird größer", "Sie fliegt weg"], antwort: "Sie stirbt", hinweis: "Der Stachel bleibt stecken und reißt der Biene den Hinterleib auf." },
+      { frage: "Wie verhältst du dich am besten, wenn eine Biene um dich herumfliegt?", optionen: ["Schnell wegrennen", "Mit den Armen wedeln", "Ruhig stehen bleiben", "Nach ihr schlagen"], antwort: "Ruhig stehen bleiben", hinweis: "Bienen stechen nur, wenn sie sich bedroht fühlen." },
+      { frage: "Welche Bienen haben einen Stachel?", optionen: ["Nur die Königin und die Arbeiterinnen", "Nur die Drohnen", "Alle Bienen", "Keine Biene"], antwort: "Nur die Königin und die Arbeiterinnen", hinweis: "Die männlichen Drohnen haben keinen Stachel." },
+      { frage: "Was sammeln Bienen in den Blüten?", optionen: ["Nur Wasser", "Nektar und Pollen", "Honig", "Wachs"], antwort: "Nektar und Pollen", hinweis: "Nektar wird zu Honig, Pollen ist das 'Brot' der Bienen." },
+      { frage: "Was macht ein Bienenvolk im Winter?", optionen: ["Es schläft draußen", "Es fliegt nach Süden", "Es bleibt im Stock zusammen und wärmt sich", "Es stirbt komplett"], antwort: "Es bleibt im Stock zusammen und wärmt sich", hinweis: "Die Bienen bilden eine warme 'Wintertraube'." },
+    ];
+
+    const hsuRest = [
+      { frage: "Welche Jahreszeit kommt nach dem Frühling?", optionen: ["Winter", "Herbst", "Sommer", "Frühling"], antwort: "Sommer", hinweis: "Frühling → Sommer → Herbst → Winter." },
+      { frage: "Wann fallen die Blätter von den Bäumen?", optionen: ["Frühling", "Sommer", "Herbst", "Winter"], antwort: "Herbst", hinweis: "Im Herbst werden Blätter bunt und fallen." },
+      { frage: "In welcher Jahreszeit blühen die meisten Blumen zuerst?", optionen: ["Winter", "Frühling", "Herbst", "Sommer"], antwort: "Frühling", hinweis: "Im Frühling erwacht die Natur." },
+      { frage: "Welches Tier ist ein Säugetier?", optionen: ["Forelle", "Adler", "Reh", "Frosch"], antwort: "Reh", hinweis: "Säugetiere säugen ihre Jungen mit Milch." },
+      { frage: "Was frisst ein Igel am liebsten?", optionen: ["Gras", "Würmer und Insekten", "Fische", "Nüsse"], antwort: "Würmer und Insekten", hinweis: "Der Igel ist ein Insektenfresser." },
+      { frage: "Welches Tier hält Winterschlaf?", optionen: ["Eichhörnchen", "Reh", "Igel", "Fuchs"], antwort: "Igel", hinweis: "Igel schlafen den ganzen Winter durch." },
+      { frage: "Wie viele Beine hat eine Spinne?", optionen: ["6", "8", "10", "4"], antwort: "8", hinweis: "Spinnen haben immer 8 Beine, Insekten nur 6." },
+      { frage: "Wie nennt man das Junge vom Schwein?", optionen: ["Kalb", "Lamm", "Ferkel", "Fohlen"], antwort: "Ferkel", hinweis: "Das Schweinejunge heißt Ferkel." },
+      { frage: "Wie nennt man das Junge vom Pferd?", optionen: ["Fohlen", "Kalb", "Welpe", "Küken"], antwort: "Fohlen", hinweis: "Ein junges Pferd heißt Fohlen." },
+      { frage: "In welchem Bundesland liegt Berg?", optionen: ["Hessen", "Bayern", "Sachsen", "Baden-Württemberg"], antwort: "Bayern", hinweis: "Berg liegt in Bayern." },
+      { frage: "Wie heißt die Hauptstadt von Bayern?", optionen: ["Nürnberg", "Augsburg", "München", "Regensburg"], antwort: "München", hinweis: "München ist die Landeshauptstadt." },
+      { frage: "Welche Farben hat die bayerische Flagge?", optionen: ["Rot-Gold", "Schwarz-Rot-Gold", "Weiß-Blau", "Grün-Weiß"], antwort: "Weiß-Blau", hinweis: "Bayern hat eine weiß-blaue Rautenflagge." },
+      { frage: "Was bedeutet eine rote Ampel für Fußgänger?", optionen: ["Gehen", "Warten", "Schnell laufen", "Egal"], antwort: "Warten", hinweis: "Rot heißt immer stehenbleiben." },
+      { frage: "Wo überquerst du am sichersten die Straße?", optionen: ["Zwischen Autos", "Am Zebrastreifen", "Mitten auf der Straße", "Hinter einem Bus"], antwort: "Am Zebrastreifen", hinweis: "Zebrastreifen sind extra für Fußgänger." },
+      { frage: "Auf welcher Seite des Gehwegs gehst du am sichersten?", optionen: ["Nah am Auto", "Nah an Häusern", "In der Mitte", "Auf der Straße"], antwort: "Nah an Häusern", hinweis: "Möglichst weit weg von fahrenden Autos." },
+      { frage: "Welches Organ pumpt das Blut durch den Körper?", optionen: ["Lunge", "Herz", "Magen", "Leber"], antwort: "Herz", hinweis: "Das Herz schlägt Tag und Nacht." },
+      { frage: "Womit atmen wir?", optionen: ["Mit dem Magen", "Mit dem Herzen", "Mit der Lunge", "Mit der Leber"], antwort: "Mit der Lunge", hinweis: "Die Lunge holt Luft in den Körper." },
+      { frage: "Wie viele Zähne hat ein Erwachsener normal?", optionen: ["20", "24", "32", "40"], antwort: "32", hinweis: "Kinder haben weniger — Milchzähne." },
+      { frage: "Wie viele Stunden hat ein Tag?", optionen: ["12", "24", "20", "60"], antwort: "24", hinweis: "Ein Tag und eine Nacht zusammen: 24 Stunden." },
+      { frage: "Wie viele Minuten hat eine Stunde?", optionen: ["30", "50", "60", "100"], antwort: "60", hinweis: "Eine Stunde besteht aus 60 Minuten." },
+      { frage: "Welcher Tag kommt nach Mittwoch?", optionen: ["Dienstag", "Donnerstag", "Freitag", "Sonntag"], antwort: "Donnerstag", hinweis: "Mo–Di–Mi–Do–Fr–Sa–So." },
+      { frage: "Wie viele Monate hat ein Jahr?", optionen: ["10", "11", "12", "14"], antwort: "12", hinweis: "Januar bis Dezember — 12 Monate." },
+      { frage: "Was brauchen Pflanzen zum Wachsen?", optionen: ["Nur Wasser", "Licht, Wasser und Erde", "Nur Licht", "Schokolade"], antwort: "Licht, Wasser und Erde", hinweis: "Pflanzen brauchen alle drei zusammen." },
+      { frage: "Welcher Teil der Pflanze ist unter der Erde?", optionen: ["Blüte", "Stängel", "Wurzel", "Blatt"], antwort: "Wurzel", hinweis: "Die Wurzel hält die Pflanze und nimmt Wasser auf." },
+    ];
+
+    const tiere = [
+      { name: "Marienkäfer", emoji: "🐞", schwelle: 0 },
+      { name: "Biene", emoji: "🐝", schwelle: 3 },
+      { name: "Schmetterling", emoji: "🦋", schwelle: 8 },
+      { name: "Frosch", emoji: "🐸", schwelle: 15 },
+      { name: "Eichhörnchen", emoji: "🐿️", schwelle: 30 },
+      { name: "Igel", emoji: "🦔", schwelle: 50 },
+      { name: "Reh", emoji: "🦌", schwelle: 75 },
+      { name: "Fuchs", emoji: "🦊", schwelle: 100 },
+      { name: "Eule", emoji: "🦉", schwelle: 130 },
+      { name: "Pferd", emoji: "🐴", schwelle: 170 },
+      { name: "Bär", emoji: "🐻", schwelle: 220 },
+    ];
+
+    // ============================================================================
+    // Sound (Web Audio, ohne externe Dateien)
+    // ============================================================================
+    function playTone(freq, dauer = 0.15, typ = "sine") {
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = typ;
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0.2, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dauer);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + dauer);
+      } catch (e) {}
+    }
+    const soundRichtig = () => { playTone(660, 0.12); setTimeout(() => playTone(880, 0.18), 100); };
+    const soundFalsch = () => playTone(180, 0.25, "square");
+    const soundStern = () => { playTone(1320, 0.08); setTimeout(() => playTone(1760, 0.12), 80); };
+
+    // ============================================================================
+    // Mini-Icons (inline SVG, damit wir keine lucide-Bibliothek brauchen)
+    // ============================================================================
+    const Icon = ({ d, className = "w-6 h-6", fill = "none" }) => (
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill={fill}
+           stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+           className={className}>{d}</svg>
+    );
+    const IconStar = (p) => <Icon {...p} d={<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>}/>;
+    const IconTrophy = (p) => <Icon {...p} d={<><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></>}/>;
+    const IconSparkles = (p) => <Icon {...p} d={<><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/></>}/>;
+    const IconHome = (p) => <Icon {...p} d={<><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></>}/>;
+    const IconChevronLeft = (p) => <Icon {...p} d={<polyline points="15 18 9 12 15 6"/>}/>;
+    const IconCheck = (p) => <Icon {...p} d={<polyline points="20 6 9 17 4 12"/>}/>;
+    const IconX = (p) => <Icon {...p} d={<><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></>}/>;
+    const IconCalc = (p) => <Icon {...p} d={<><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="8" y2="10"/><line x1="12" y1="10" x2="12" y2="10"/><line x1="16" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="8" y2="14"/><line x1="12" y1="14" x2="12" y2="14"/><line x1="16" y1="14" x2="16" y2="14"/><line x1="8" y1="18" x2="8" y2="18"/><line x1="12" y1="18" x2="12" y2="18"/><line x1="16" y1="18" x2="16" y2="18"/></>}/>;
+    const IconBook = (p) => <Icon {...p} d={<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V2H6.5A2.5 2.5 0 0 0 4 4.5v15zM4 19.5V22h16"/>}/>;
+    const IconLeaf = (p) => <Icon {...p} d={<><path d="M11 20A7 7 0 0 1 4 13c0-7 8-9 16-9-1 8-3 16-9 16"/><path d="M2 22c4-4 6-6 10-10"/></>}/>;
+    const IconLock = (p) => <Icon {...p} d={<><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></>}/>;
+    const IconReset = (p) => <Icon {...p} d={<><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></>}/>;
+    const IconAward = (p) => <Icon {...p} d={<><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></>}/>;
+
+    // ============================================================================
+    // Storage (LocalStorage als simpler Drop-in)
+    // ============================================================================
+    const Storage = {
+      get(key) {
+        try { const v = localStorage.getItem(key); return v ? { value: v } : null; }
+        catch(e) { return null; }
+      },
+      set(key, value) { try { localStorage.setItem(key, value); } catch(e) {} },
+      delete(key) { try { localStorage.removeItem(key); } catch(e) {} },
+    };
+
+    // ============================================================================
+    // HAUPT-KOMPONENTE
+    // ============================================================================
+    function Lernapp() {
+      const [screen, setScreen] = useState("home");
+      const [sterne, setSterne] = useState(0);
+      const [richtigeGesamt, setRichtigeGesamt] = useState(0);
+      const [fachStats, setFachStats] = useState({ mathe: 0, deutsch: 0, hsu: 0 });
+      const [geladen, setGeladen] = useState(false);
+
+      useEffect(() => {
+        const r = Storage.get("lernapp_fortschritt");
+        if (r && r.value) {
+          try {
+            const d = JSON.parse(r.value);
+            setSterne(d.sterne || 0);
+            setRichtigeGesamt(d.richtigeGesamt || 0);
+            setFachStats(d.fachStats || { mathe: 0, deutsch: 0, hsu: 0 });
+          } catch(e) {}
+        }
+        setGeladen(true);
+      }, []);
+
+      useEffect(() => {
+        if (!geladen) return;
+        Storage.set("lernapp_fortschritt", JSON.stringify({ sterne, richtigeGesamt, fachStats }));
+      }, [sterne, richtigeGesamt, fachStats, geladen]);
+
+      const reset = () => {
+        setSterne(0); setRichtigeGesamt(0);
+        setFachStats({ mathe: 0, deutsch: 0, hsu: 0 });
+        Storage.delete("lernapp_fortschritt");
+      };
+
+      const aufgabeRichtig = (fach) => {
+        setSterne((s) => s + 1);
+        setRichtigeGesamt((r) => r + 1);
+        setFachStats((f) => ({ ...f, [fach]: (f[fach] || 0) + 1 }));
+      };
+
+      if (!geladen) {
+        return <div className="min-h-screen flex items-center justify-center bg-amber-50">
+          <div className="text-2xl text-amber-900">Lade…</div>
+        </div>;
+      }
+
+      return (
+        <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50">
+          <div className="fixed inset-0 pointer-events-none opacity-30"
+               style={{ backgroundImage: "radial-gradient(circle at 20% 30%, #fbbf24 0%, transparent 30%), radial-gradient(circle at 80% 70%, #fb923c 0%, transparent 30%)" }} />
+          <div className="relative z-10 max-w-4xl mx-auto p-4 md:p-8">
+            {screen === "home" && <HomeScreen sterne={sterne} richtigeGesamt={richtigeGesamt} fachStats={fachStats}
+                onFach={(f) => setScreen(f)} onGarten={() => setScreen("garten")} onReset={reset} />}
+            {screen === "mathe" && <QuizScreen fach="mathe" titel="Mathe" farbe="bg-sky-500" farbeHell="bg-sky-100" farbeText="text-sky-700"
+                icon={<IconCalc/>} aufgabenQuelle={() => genMatheAufgabe()}
+                onZurueck={() => setScreen("home")} onRichtig={() => aufgabeRichtig("mathe")} />}
+            {screen === "deutsch" && <QuizScreen fach="deutsch" titel="Deutsch" farbe="bg-rose-500" farbeHell="bg-rose-100" farbeText="text-rose-700"
+                icon={<IconBook/>} aufgabenQuelle={() => pick(deutschAufgaben)}
+                onZurueck={() => setScreen("home")} onRichtig={() => aufgabeRichtig("deutsch")} />}
+            {screen === "hsu" && <HsuAuswahlScreen onZurueck={() => setScreen("home")} onThema={(t) => setScreen(t)} />}
+            {screen === "hsu_bienen" && <QuizScreen fach="hsu" titel="Bienen 🐝" farbe="bg-amber-500" farbeHell="bg-amber-100" farbeText="text-amber-800"
+                icon={<IconLeaf/>} aufgabenQuelle={() => pick(hsuBienen)}
+                onZurueck={() => setScreen("hsu")} onRichtig={() => aufgabeRichtig("hsu")} />}
+            {screen === "hsu_alles" && <QuizScreen fach="hsu" titel="HSU — Alles" farbe="bg-emerald-500" farbeHell="bg-emerald-100" farbeText="text-emerald-700"
+                icon={<IconLeaf/>} aufgabenQuelle={() => pick([...hsuBienen, ...hsuRest])}
+                onZurueck={() => setScreen("hsu")} onRichtig={() => aufgabeRichtig("hsu")} />}
+            {screen === "garten" && <GartenScreen sterne={sterne} onZurueck={() => setScreen("home")} />}
+          </div>
+        </div>
+      );
+    }
+
+    function HomeScreen({ sterne, richtigeGesamt, fachStats, onFach, onGarten, onReset }) {
+      const naechstesTier = tiere.find((t) => t.schwelle > sterne);
+      return (
+        <div className="space-y-6">
+          <div className="text-center pt-4">
+            <h1 className="text-5xl md:text-6xl font-extrabold text-amber-900 tracking-tight">Lernspaß</h1>
+            <p className="text-lg text-amber-700 mt-2">2. Klasse · Schwarzwaldtalschule Berg</p>
+          </div>
+
+          <div className="bg-white rounded-3xl p-6 shadow-lg border-4 border-amber-200">
+            <div className="flex items-center justify-between flex-wrap gap-4">
+              <div className="flex items-center gap-3">
+                <div className="bg-amber-400 rounded-2xl p-3 shadow-md">
+                  <IconStar className="w-8 h-8 text-white" fill="currentColor"/>
+                </div>
+                <div>
+                  <div className="text-4xl font-bold text-amber-900">{sterne}</div>
+                  <div className="text-sm text-amber-600">Sterne gesammelt</div>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <IconTrophy className="w-7 h-7 text-orange-500"/>
+                <div>
+                  <div className="text-2xl font-bold text-orange-700">{richtigeGesamt}</div>
+                  <div className="text-sm text-orange-600">richtige Antworten</div>
+                </div>
+              </div>
+            </div>
+            {naechstesTier && (
+              <div className="mt-4 pt-4 border-t border-amber-100">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-amber-700">
+                    Nächstes Tier: <span className="text-2xl">{naechstesTier.emoji}</span> {naechstesTier.name}
+                  </span>
+                  <span className="font-semibold text-amber-900">noch {naechstesTier.schwelle - sterne} Sterne</span>
+                </div>
+                <div className="mt-2 h-3 bg-amber-100 rounded-full overflow-hidden">
+                  <div className="h-full bg-gradient-to-r from-amber-400 to-orange-500 rounded-full transition-all duration-500"
+                       style={{ width: `${Math.min(100, (sterne / naechstesTier.schwelle) * 100)}%` }}/>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <FachKarte titel="Mathe" beschreibung="Rechnen bis 100, Einmaleins" icon={<IconCalc className="w-10 h-10"/>}
+                farbe="from-sky-400 to-sky-600" richtige={fachStats.mathe || 0} onClick={() => onFach("mathe")}/>
+            <FachKarte titel="Deutsch" beschreibung="Wörter, Sätze, Rechtschreibung" icon={<IconBook className="w-10 h-10"/>}
+                farbe="from-rose-400 to-rose-600" richtige={fachStats.deutsch || 0} onClick={() => onFach("deutsch")}/>
+            <FachKarte titel="HSU" beschreibung="Natur, Tiere, Heimat" icon={<IconLeaf className="w-10 h-10"/>}
+                farbe="from-emerald-400 to-emerald-600" richtige={fachStats.hsu || 0} onClick={() => onFach("hsu")}/>
+          </div>
+
+          <button onClick={onGarten}
+              className="w-full bg-gradient-to-r from-orange-400 via-amber-400 to-yellow-400 text-white rounded-3xl p-6 shadow-lg hover:shadow-xl active:scale-[0.98] transition-all border-4 border-white">
+            <div className="flex items-center justify-center gap-3">
+              <IconSparkles className="w-8 h-8"/>
+              <span className="text-2xl font-bold">Mein Tier-Garten</span>
+              <IconSparkles className="w-8 h-8"/>
+            </div>
+          </button>
+
+          <div className="text-center pt-4">
+            <button onClick={() => { if (window.confirm("Wirklich allen Fortschritt löschen?")) onReset(); }}
+                className="text-sm text-amber-700 hover:text-amber-900 underline inline-flex items-center gap-1">
+              <IconReset className="w-4 h-4"/> Fortschritt zurücksetzen
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    function FachKarte({ titel, beschreibung, icon, farbe, richtige, onClick }) {
+      return (
+        <button onClick={onClick}
+            className={`bg-gradient-to-br ${farbe} text-white rounded-3xl p-6 shadow-lg hover:shadow-2xl active:scale-[0.97] transition-all border-4 border-white text-left`}>
+          <div className="flex items-start justify-between">
+            <div className="bg-white/25 rounded-2xl p-3">{icon}</div>
+            <div className="bg-white/30 rounded-full px-3 py-1 text-sm font-semibold">{richtige} ✓</div>
+          </div>
+          <h3 className="text-3xl font-bold mt-4">{titel}</h3>
+          <p className="text-white/90 mt-1">{beschreibung}</p>
+        </button>
+      );
+    }
+
+    function HsuAuswahlScreen({ onZurueck, onThema }) {
+      return (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <button onClick={onZurueck}
+                className="bg-white rounded-2xl px-4 py-3 shadow-md hover:shadow-lg active:scale-95 transition-all flex items-center gap-2">
+              <IconChevronLeft className="w-5 h-5"/><IconHome className="w-5 h-5"/>
+            </button>
+            <h2 className="text-3xl md:text-4xl font-extrabold text-emerald-800">HSU — Welches Thema?</h2>
+            <div className="w-20"/>
+          </div>
+          <p className="text-center text-emerald-700">Wähle ein Thema zum Üben:</p>
+          <button onClick={() => onThema("hsu_bienen")}
+              className="w-full bg-gradient-to-br from-amber-400 via-yellow-400 to-orange-400 text-white rounded-3xl p-8 shadow-xl hover:shadow-2xl active:scale-[0.98] transition-all border-4 border-white relative overflow-hidden">
+            <div className="absolute inset-0 opacity-20 pointer-events-none text-7xl flex flex-wrap gap-2 p-4">
+              <span>🍯</span><span>🌼</span><span>🐝</span><span>🌸</span>
+              <span>🌻</span><span>🐝</span><span>🌺</span>
+            </div>
+            <div className="relative flex items-center gap-5">
+              <div className="text-7xl md:text-8xl">🐝</div>
+              <div className="text-left">
+                <div className="text-xs uppercase tracking-wider font-bold bg-white/30 rounded-full px-3 py-1 inline-block mb-2">
+                  Aktuelles Thema in der Schule
+                </div>
+                <h3 className="text-4xl md:text-5xl font-extrabold">Bienen</h3>
+                <p className="text-white/95 mt-1 text-lg">Körper, Bienenvolk, Honig & mehr</p>
+              </div>
+            </div>
+          </button>
+          <button onClick={() => onThema("hsu_alles")}
+              className="w-full bg-gradient-to-br from-emerald-400 to-emerald-600 text-white rounded-3xl p-6 shadow-lg hover:shadow-xl active:scale-[0.98] transition-all border-4 border-white">
+            <div className="flex items-center gap-4">
+              <div className="text-5xl">🌍</div>
+              <div className="text-left">
+                <h3 className="text-2xl md:text-3xl font-bold">Alle HSU-Themen</h3>
+                <p className="text-white/90 mt-1">Jahreszeiten, Tiere, Heimat, Verkehr, Körper, Zeit, Pflanzen — und Bienen</p>
+              </div>
+            </div>
+          </button>
+        </div>
+      );
+    }
+
+    function QuizScreen({ fach, titel, farbe, farbeHell, farbeText, icon, aufgabenQuelle, onZurueck, onRichtig }) {
+      const [aufgabe, setAufgabe] = useState(() => aufgabenQuelle());
+      const [gewaehlt, setGewaehlt] = useState(null);
+      const [zeigeFeedback, setZeigeFeedback] = useState(false);
+      const [serie, setSerie] = useState(0);
+      const [runde, setRunde] = useState({ richtig: 0, gesamt: 0 });
+      const [konfetti, setKonfetti] = useState([]);
+
+      const naechste = () => { setAufgabe(aufgabenQuelle()); setGewaehlt(null); setZeigeFeedback(false); };
+
+      const antworten = (option) => {
+        if (zeigeFeedback) return;
+        setGewaehlt(option); setZeigeFeedback(true);
+        const ist_richtig = String(option) === String(aufgabe.antwort);
+        setRunde((r) => ({ richtig: r.richtig + (ist_richtig ? 1 : 0), gesamt: r.gesamt + 1 }));
+        if (ist_richtig) {
+          soundRichtig(); onRichtig(); setSerie((s) => s + 1);
+          const neu = Array.from({ length: 12 }, (_, i) => ({
+            id: Date.now() + i, x: Math.random() * 100,
+            emoji: pick(["⭐", "✨", "🌟", "💫"]), delay: Math.random() * 200,
+          }));
+          setKonfetti(neu);
+          setTimeout(() => setKonfetti([]), 1500);
+          if ((serie + 1) % 5 === 0) setTimeout(soundStern, 400);
+        } else { soundFalsch(); setSerie(0); }
+      };
+
+      const ist_richtig = gewaehlt !== null && String(gewaehlt) === String(aufgabe.antwort);
+
+      return (
+        <div className="space-y-4 relative">
+          {konfetti.map((k) => (
+            <div key={k.id} className="fixed text-3xl pointer-events-none z-50"
+                 style={{ left: `${k.x}%`, top: "30%", animation: `confettiFall 1.5s ease-out ${k.delay}ms forwards` }}>
+              {k.emoji}
+            </div>
+          ))}
+
+          <div className="flex items-center justify-between">
+            <button onClick={onZurueck}
+                className="bg-white rounded-2xl px-4 py-3 shadow-md hover:shadow-lg active:scale-95 transition-all flex items-center gap-2">
+              <IconChevronLeft className="w-5 h-5"/><IconHome className="w-5 h-5"/>
+            </button>
+            <div className={`${farbe} text-white rounded-2xl px-5 py-3 shadow-md flex items-center gap-2 font-bold text-lg`}>
+              {icon} {titel}
+            </div>
+            <div className="bg-white rounded-2xl px-4 py-3 shadow-md text-amber-900 font-bold">
+              {runde.richtig} / {runde.gesamt}
+            </div>
+          </div>
+
+          {serie >= 2 && (
+            <div className="bg-gradient-to-r from-amber-400 to-orange-500 text-white rounded-2xl px-5 py-2 shadow-md text-center font-bold"
+                 style={{ animation: "pop 0.4s ease-out" }}>
+              🔥 {serie} richtige in Folge!
+            </div>
+          )}
+
+          <div className="bg-white rounded-3xl p-6 md:p-8 shadow-xl border-4 border-amber-200">
+            <div className={`${farbeHell} ${farbeText} rounded-2xl p-5 mb-6`}>
+              <p className="text-xl md:text-3xl font-bold text-center leading-relaxed">{aufgabe.frage}</p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {aufgabe.optionen.map((opt, i) => {
+                const gewaehltDiese = String(gewaehlt) === String(opt);
+                const richtigeDiese = String(opt) === String(aufgabe.antwort);
+                let stil = "bg-white border-amber-300 text-amber-900 hover:border-amber-500 hover:bg-amber-50";
+                if (zeigeFeedback) {
+                  if (richtigeDiese) stil = "bg-emerald-500 border-emerald-600 text-white";
+                  else if (gewaehltDiese) stil = "bg-rose-500 border-rose-600 text-white";
+                  else stil = "bg-gray-100 border-gray-300 text-gray-500";
+                }
+                return (
+                  <button key={i} onClick={() => antworten(opt)} disabled={zeigeFeedback}
+                      className={`${stil} border-4 rounded-2xl py-5 px-4 text-2xl font-bold shadow-md active:scale-95 transition-all flex items-center justify-center gap-2`}>
+                    {zeigeFeedback && richtigeDiese && <IconCheck className="w-7 h-7"/>}
+                    {zeigeFeedback && gewaehltDiese && !richtigeDiese && <IconX className="w-7 h-7"/>}
+                    {opt}
+                  </button>
+                );
+              })}
+            </div>
+
+            {zeigeFeedback && (
+              <div className="mt-6 space-y-3" style={{ animation: "pop 0.3s ease-out" }}>
+                {ist_richtig ? (
+                  <div className="bg-emerald-100 border-4 border-emerald-300 rounded-2xl p-4 text-center">
+                    <div className="text-3xl font-bold text-emerald-700 flex items-center justify-center gap-2">
+                      <IconStar className="w-8 h-8 text-emerald-500" fill="currentColor"/> Super!
+                    </div>
+                    <p className="text-emerald-600 mt-1">Ein Stern für dich!</p>
+                  </div>
+                ) : (
+                  <div className="bg-rose-50 border-4 border-rose-200 rounded-2xl p-4">
+                    <p className="font-bold text-rose-700 text-center">Nicht ganz!</p>
+                    <p className="text-rose-600 text-center mt-1">
+                      Richtig wäre: <span className="font-bold">{aufgabe.antwort}</span>
+                    </p>
+                    {aufgabe.hinweis && (
+                      <p className="text-sm text-amber-700 text-center mt-2 italic">💡 {aufgabe.hinweis}</p>
+                    )}
+                  </div>
+                )}
+                <button onClick={naechste}
+                    className={`${farbe} text-white w-full rounded-2xl py-4 text-xl font-bold shadow-lg hover:shadow-xl active:scale-[0.98] transition-all`}>
+                  Nächste Aufgabe →
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    function GartenScreen({ sterne, onZurueck }) {
+      const freigeschaltet = tiere.filter((t) => t.schwelle <= sterne);
+      const gesperrt = tiere.filter((t) => t.schwelle > sterne);
+      return (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <button onClick={onZurueck}
+                className="bg-white rounded-2xl px-4 py-3 shadow-md hover:shadow-lg active:scale-95 transition-all flex items-center gap-2">
+              <IconChevronLeft className="w-5 h-5"/><IconHome className="w-5 h-5"/>
+            </button>
+            <h2 className="text-3xl md:text-4xl font-extrabold text-amber-900">Mein Tier-Garten</h2>
+            <div className="bg-amber-400 rounded-2xl px-4 py-3 shadow-md text-white font-bold flex items-center gap-1">
+              <IconStar className="w-5 h-5" fill="currentColor"/> {sterne}
+            </div>
+          </div>
+
+          <div className="bg-gradient-to-b from-sky-200 via-emerald-100 to-amber-100 rounded-3xl p-6 md:p-8 shadow-xl border-4 border-white">
+            <p className="text-center text-emerald-800 font-semibold mb-4">
+              {freigeschaltet.length} von {tiere.length} Tieren gefunden!
+            </p>
+            <div className="grid grid-cols-3 md:grid-cols-5 gap-3">
+              {freigeschaltet.map((t) => (
+                <div key={t.name} className="bg-white rounded-2xl p-3 shadow-md border-2 border-emerald-200 text-center hover:scale-105 transition-transform">
+                  <div className="text-5xl md:text-6xl">{t.emoji}</div>
+                  <div className="text-xs md:text-sm font-semibold text-emerald-700 mt-2">{t.name}</div>
+                </div>
+              ))}
+              {gesperrt.map((t) => (
+                <div key={t.name} className="bg-gray-100 rounded-2xl p-3 shadow-md border-2 border-gray-200 text-center opacity-60">
+                  <div className="text-5xl md:text-6xl"><IconLock className="w-10 h-10 mx-auto text-gray-400"/></div>
+                  <div className="text-xs md:text-sm font-semibold text-gray-500 mt-2">{t.schwelle} ⭐</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="bg-white rounded-3xl p-5 shadow-md border-2 border-amber-200 text-center">
+            <p className="text-amber-700">
+              <IconAward className="w-5 h-5 inline mr-1"/>
+              Sammle Sterne, indem du Aufgaben richtig löst — jedes neue Tier wartet auf dich!
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<Lernapp />);
+  </script>
+</body>
+</html>
