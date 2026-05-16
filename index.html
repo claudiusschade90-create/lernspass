@@ -34,6 +34,7 @@
       user-select: none;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     }
+    input { -webkit-user-select: text; user-select: text; }
     @keyframes confettiFall {
       0% { transform: translateY(0) rotate(0deg); opacity: 1; }
       100% { transform: translateY(400px) rotate(720deg); opacity: 0; }
@@ -43,154 +44,424 @@
       50% { transform: scale(1.1); }
       100% { transform: scale(1); }
     }
+    @keyframes fadeIn {
+      0% { opacity: 0; transform: translateY(10px); }
+      100% { opacity: 1; transform: translateY(0); }
+    }
   </style>
 </head>
 <body>
   <div id="root"></div>
 
   <script type="text/babel" data-presets="react">
-    const { useState, useEffect, useRef } = React;
+    const { useState, useEffect, useRef, useMemo } = React;
 
     // ============================================================================
-    // AUFGABEN-GENERATOREN — LehrplanPLUS Bayern, 2. Klasse
+    // STORAGE-KEYS
+    // ============================================================================
+    const KEY_PROFILE      = "lernapp_profile";        // Array<{id, name, emoji}>
+    const KEY_AKTIV        = "lernapp_aktiv";           // id
+    const KEY_PIN          = "lernapp_eltern_pin";      // "1234"
+    const KEY_MIGRIERT     = "lernapp_migriert_v2";     // "1"
+    const KEY_ALT          = "lernapp_fortschritt";     // alter Single-Profil-Stand
+    const keyProfilDaten   = (id) => `lernapp_profil_${id}`;
+    const keyLernwoerter   = (id) => `lernapp_lernwoerter_${id}`;
+
+    const Storage = {
+      get(key) {
+        try { const v = localStorage.getItem(key); return v != null ? v : null; }
+        catch(e) { return null; }
+      },
+      getJson(key, fallback) {
+        try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; }
+        catch(e) { return fallback; }
+      },
+      set(key, value) { try { localStorage.setItem(key, value); } catch(e) {} },
+      setJson(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); } catch(e) {} },
+      del(key) { try { localStorage.removeItem(key); } catch(e) {} },
+    };
+
+    // ============================================================================
+    // HILFSFUNKTIONEN
     // ============================================================================
     const rand = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
     const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
     const shuffle = (arr) => [...arr].sort(() => Math.random() - 0.5);
 
-    function genMatheAufgabe() {
-      const typ = pick(["plus", "minus", "einmaleins", "vergleich", "zehner"]);
-      if (typ === "plus") {
-        const a = rand(10, 60);
-        const b = rand(5, 100 - a);
-        return { frage: `${a} + ${b} = ?`, antwort: a + b,
-          optionen: shuffle([a + b, a + b + 1, a + b - 2, a + b + 10]).map(String),
-          hinweis: "Tipp: Erst die Zehner, dann die Einer." };
-      }
-      if (typ === "minus") {
-        const a = rand(20, 100);
-        const b = rand(2, a - 1);
-        return { frage: `${a} − ${b} = ?`, antwort: a - b,
-          optionen: shuffle([a - b, a - b + 1, a - b - 1, a - b + 10]).map(String),
-          hinweis: "Tipp: Zähle rückwärts in Schritten." };
-      }
-      if (typ === "einmaleins") {
-        const reihe = pick([1, 2, 5, 10, 3, 4]);
-        const x = rand(1, 10);
-        return { frage: `${reihe} · ${x} = ?`, antwort: reihe * x,
-          optionen: shuffle([reihe * x, reihe * x + reihe, reihe * x - reihe, reihe * (x + 1) + 1]).map(String),
-          hinweis: `Die ${reihe}er-Reihe: immer +${reihe}.` };
-      }
-      if (typ === "vergleich") {
-        const a = rand(10, 99);
-        let b = rand(10, 99);
-        while (b === a) b = rand(10, 99);
-        return { frage: `Welches Zeichen passt?  ${a} ___ ${b}`, antwort: a > b ? ">" : "<",
-          optionen: shuffle([">", "<", "="]),
-          hinweis: "Die Spitze zeigt zur kleineren Zahl." };
-      }
-      const z = rand(2, 9), e = rand(1, 9);
-      return { frage: `${z} Zehner und ${e} Einer — welche Zahl ist das?`, antwort: z * 10 + e,
-        optionen: shuffle([z * 10 + e, e * 10 + z, z * 10 + e + 10, z * 10]).map(String),
-        hinweis: "Zehner stehen vorne, Einer hinten." };
+    // ============================================================================
+    // THEMEN-KATALOG (für Statistik und adaptive Auswahl)
+    // ============================================================================
+    const THEMEN = [
+      // Mathe
+      { id: "mathe_plus",          name: "Plus bis 100",        fach: "Mathe" },
+      { id: "mathe_minus",         name: "Minus bis 100",       fach: "Mathe" },
+      { id: "mathe_einmaleins_1",  name: "1er-Reihe",           fach: "Mathe" },
+      { id: "mathe_einmaleins_2",  name: "2er-Reihe",           fach: "Mathe" },
+      { id: "mathe_einmaleins_3",  name: "3er-Reihe",           fach: "Mathe" },
+      { id: "mathe_einmaleins_4",  name: "4er-Reihe",           fach: "Mathe" },
+      { id: "mathe_einmaleins_5",  name: "5er-Reihe",           fach: "Mathe" },
+      { id: "mathe_einmaleins_10", name: "10er-Reihe",          fach: "Mathe" },
+      { id: "mathe_vergleich",     name: "Zahlen vergleichen",  fach: "Mathe" },
+      { id: "mathe_zehner",        name: "Zehner und Einer",    fach: "Mathe" },
+      { id: "mathe_uhr",           name: "Uhrzeit lesen",       fach: "Mathe" },
+      { id: "mathe_geld",          name: "Geld rechnen",        fach: "Mathe" },
+      // Deutsch
+      { id: "deutsch_gross",       name: "Großschreibung",      fach: "Deutsch" },
+      { id: "deutsch_ie",          name: "ie-Schreibung",       fach: "Deutsch" },
+      { id: "deutsch_cktz",        name: "ck und tz",           fach: "Deutsch" },
+      { id: "deutsch_artikel",     name: "der · die · das",     fach: "Deutsch" },
+      { id: "deutsch_silben",      name: "Silben zählen",       fach: "Deutsch" },
+      { id: "deutsch_wortart",     name: "Wortarten",           fach: "Deutsch" },
+      { id: "deutsch_satzzeichen", name: "Satzzeichen",         fach: "Deutsch" },
+      { id: "deutsch_reim",        name: "Reime",               fach: "Deutsch" },
+      { id: "deutsch_mehrzahl",    name: "Mehrzahl",            fach: "Deutsch" },
+      { id: "deutsch_lernwoerter", name: "Eigene Lernwörter",   fach: "Deutsch" },
+      // HSU — Bienen
+      { id: "bienen_koerper",      name: "Körperbau",           fach: "Bienen" },
+      { id: "bienen_volk",         name: "Bienenvolk",          fach: "Bienen" },
+      { id: "bienen_stock",        name: "Bienenstock & Waben", fach: "Bienen" },
+      { id: "bienen_aufgaben",     name: "Honig & Bestäubung",  fach: "Bienen" },
+      { id: "bienen_stachel",      name: "Stachel & Verhalten", fach: "Bienen" },
+      { id: "bienen_jahr",         name: "Jahreszyklus",        fach: "Bienen" },
+      // HSU — Allgemein
+      { id: "hsu_jahreszeiten",    name: "Jahreszeiten",        fach: "HSU" },
+      { id: "hsu_tiere",           name: "Tiere",               fach: "HSU" },
+      { id: "hsu_heimat",          name: "Bayern & Heimat",     fach: "HSU" },
+      { id: "hsu_verkehr",         name: "Verkehrserziehung",   fach: "HSU" },
+      { id: "hsu_koerper",         name: "Mensch & Körper",     fach: "HSU" },
+      { id: "hsu_zeit",            name: "Zeit & Kalender",     fach: "HSU" },
+      { id: "hsu_pflanzen",        name: "Pflanzen",            fach: "HSU" },
+    ];
+    const themaName = (id) => (THEMEN.find((t) => t.id === id) || {}).name || id;
+
+    // ============================================================================
+    // ADAPTIVE AUSWAHL — gewichtet nach Trefferquote
+    // ============================================================================
+    function gewichtFuerThema(thema, themaStats) {
+      const s = themaStats[thema] || { richtig: 0, falsch: 0 };
+      const total = s.richtig + s.falsch;
+      if (total < 3) return 2;                     // ungeübt → normales Gewicht
+      const quote = s.richtig / total;
+      if (quote < 0.6)  return 3;                  // schwach → öfter
+      if (quote < 0.85) return 2;                  // mittel → normal
+      return 1;                                    // sicher → seltener
     }
 
-    const deutschAufgaben = [
-      { frage: "Welches Wort schreibt man groß?", optionen: ["hund", "Hund", "schnell", "rot"], antwort: "Hund", hinweis: "Nomen (Namenwörter) schreibt man groß." },
-      { frage: "Welches Wort ist ein Nomen?", optionen: ["laufen", "schön", "Apfel", "und"], antwort: "Apfel", hinweis: "Nomen sind Dinge, Personen, Tiere oder Pflanzen." },
-      { frage: "Welches Wort schreibt man groß?", optionen: ["tasche", "grün", "Schule", "essen"], antwort: "Schule", hinweis: "Ein Ort/Gebäude ist ein Nomen." },
-      { frage: "Wie schreibt man das Wort richtig?", optionen: ["Liebe", "Libe", "Liiebe", "Lieebe"], antwort: "Liebe", hinweis: "Langes i schreibt man oft 'ie'." },
-      { frage: "Wie schreibt man das Wort richtig?", optionen: ["Tier", "Tir", "Tihr", "Thier"], antwort: "Tier", hinweis: "Langes i = ie." },
-      { frage: "Wie schreibt man das Wort richtig?", optionen: ["Spil", "Spihl", "Spiel", "Spihel"], antwort: "Spiel", hinweis: "Langes i schreibt man 'ie'." },
-      { frage: "Welches Wort ist ein Verb (Tunwort)?", optionen: ["Baum", "rennen", "blau", "schnell"], antwort: "rennen", hinweis: "Verben sagen, was jemand tut." },
-      { frage: "Welches Wort ist ein Adjektiv (Wie-Wort)?", optionen: ["singen", "Katze", "fröhlich", "Tisch"], antwort: "fröhlich", hinweis: "Adjektive beschreiben, wie etwas ist." },
-      { frage: "Welcher Artikel passt? ___ Sonne", optionen: ["der", "die", "das"], antwort: "die", hinweis: "Sonne ist weiblich → die." },
-      { frage: "Welcher Artikel passt? ___ Hund", optionen: ["der", "die", "das"], antwort: "der", hinweis: "Hund ist männlich → der." },
-      { frage: "Welcher Artikel passt? ___ Kind", optionen: ["der", "die", "das"], antwort: "das", hinweis: "Kind ist sächlich → das." },
-      { frage: "Welcher Artikel passt? ___ Lehrerin", optionen: ["der", "die", "das"], antwort: "die", hinweis: "Lehrerin ist weiblich → die." },
-      { frage: "Wie viele Silben hat 'Sonnenblume'?", optionen: ["2", "3", "4", "5"], antwort: "4", hinweis: "Son-nen-blu-me — vier Silben." },
-      { frage: "Wie viele Silben hat 'Schule'?", optionen: ["1", "2", "3", "4"], antwort: "2", hinweis: "Schu-le — zwei Silben." },
-      { frage: "Wie schreibt man das Wort richtig?", optionen: ["Zucker", "Zuker", "Zukker", "Zukcer"], antwort: "Zucker", hinweis: "Nach kurzem Vokal: ck." },
-      { frage: "Wie schreibt man das Wort richtig?", optionen: ["Katse", "Kazze", "Katze", "Katzze"], antwort: "Katze", hinweis: "Nach kurzem Vokal: tz." },
-      { frage: "Welches Satzzeichen kommt ans Ende?  'Wie heißt du'", optionen: [".", "?", "!", ","], antwort: "?", hinweis: "Eine Frage endet mit '?'." },
-      { frage: "Welches Satzzeichen kommt ans Ende?  'Pass auf'", optionen: [".", "?", "!", ","], antwort: "!", hinweis: "Bei Ausrufen passt '!'." },
-      { frage: "Was reimt sich auf 'Haus'?", optionen: ["Hund", "Maus", "Tisch", "Auto"], antwort: "Maus", hinweis: "Haus — Maus, beide enden auf -aus." },
-      { frage: "Was reimt sich auf 'Katze'?", optionen: ["Hund", "Tatze", "Vogel", "Fisch"], antwort: "Tatze", hinweis: "Katze — Tatze, beide enden auf -atze." },
-      { frage: "Wie heißt die Mehrzahl von 'Buch'?", optionen: ["Buchs", "Bücher", "Buche", "Buchen"], antwort: "Bücher", hinweis: "Ein Buch — viele Bücher." },
-      { frage: "Wie heißt die Mehrzahl von 'Kind'?", optionen: ["Kinde", "Kinder", "Kindes", "Kindern"], antwort: "Kinder", hinweis: "Ein Kind — viele Kinder." },
+    function waehleGewichtet(elemente, themaFn, themaStats) {
+      const gewichte = elemente.map((e) => gewichtFuerThema(themaFn(e), themaStats));
+      const sum = gewichte.reduce((a, b) => a + b, 0);
+      let r = Math.random() * sum;
+      for (let i = 0; i < elemente.length; i++) {
+        r -= gewichte[i];
+        if (r <= 0) return elemente[i];
+      }
+      return elemente[elemente.length - 1];
+    }
+
+    function pickAdaptiv(aufgaben, themaStats) {
+      if (aufgaben.length === 0) return null;
+      // Gruppiere nach Thema, wähle Thema gewichtet, dann zufällig aus dem Thema
+      const gruppen = {};
+      aufgaben.forEach((a) => {
+        const t = a.thema || "unbekannt";
+        if (!gruppen[t]) gruppen[t] = [];
+        gruppen[t].push(a);
+      });
+      const themen = Object.keys(gruppen);
+      const gewaehlt = waehleGewichtet(themen, (t) => t, themaStats);
+      return pick(gruppen[gewaehlt]);
+    }
+
+    // ============================================================================
+    // MATHE — Aufgaben-Typen
+    // ============================================================================
+    function matheAufgabePlus() {
+      const stufe = rand(0, 2); // 0=ohne Übergang, 1=mit Übergang, 2=größer
+      let a, b;
+      if (stufe === 0) { a = rand(10, 50); b = rand(2, 9); }
+      else if (stufe === 1) { a = rand(15, 60); b = rand(5, 100 - a); }
+      else { a = rand(30, 70); b = rand(10, 100 - a); }
+      return {
+        thema: "mathe_plus",
+        frage: `${a} + ${b} = ?`,
+        antwort: a + b,
+        optionen: shuffle([a + b, a + b + 1, a + b - 2, a + b + 10]).map(String),
+        hinweis: "Tipp: Erst die Zehner, dann die Einer.",
+      };
+    }
+    function matheAufgabeMinus() {
+      const a = rand(20, 100);
+      const b = rand(2, a - 1);
+      return {
+        thema: "mathe_minus",
+        frage: `${a} − ${b} = ?`,
+        antwort: a - b,
+        optionen: shuffle([a - b, a - b + 1, a - b - 1, a - b + 10]).map(String),
+        hinweis: "Tipp: Zähle rückwärts in Schritten.",
+      };
+    }
+    function matheAufgabeEinmaleins(reihe) {
+      const x = rand(1, 10);
+      return {
+        thema: `mathe_einmaleins_${reihe}`,
+        frage: `${reihe} · ${x} = ?`,
+        antwort: reihe * x,
+        optionen: shuffle([reihe * x, reihe * x + reihe, reihe * x - reihe, reihe * (x + 1) + 1]).map(String),
+        hinweis: `Die ${reihe}er-Reihe: immer +${reihe}.`,
+      };
+    }
+    function matheAufgabeVergleich() {
+      const a = rand(10, 99);
+      let b = rand(10, 99);
+      while (b === a) b = rand(10, 99);
+      return {
+        thema: "mathe_vergleich",
+        frage: `Welches Zeichen passt?  ${a} ___ ${b}`,
+        antwort: a > b ? ">" : "<",
+        optionen: shuffle([">", "<", "="]),
+        hinweis: "Die Spitze zeigt zur kleineren Zahl.",
+      };
+    }
+    function matheAufgabeZehner() {
+      const z = rand(2, 9), e = rand(1, 9);
+      return {
+        thema: "mathe_zehner",
+        frage: `${z} Zehner und ${e} Einer — welche Zahl ist das?`,
+        antwort: z * 10 + e,
+        optionen: shuffle([z * 10 + e, e * 10 + z, z * 10 + e + 10, z * 10]).map(String),
+        hinweis: "Zehner stehen vorne, Einer hinten.",
+      };
+    }
+    function matheAufgabeUhr() {
+      const stunde = rand(1, 12);
+      // 2. Klasse: volle und halbe Stunden häufig, Viertel seltener
+      const minute = pick([0, 0, 0, 30, 30, 30, 15, 45]);
+      const fmt = (s, m) => `${s}:${String(m).padStart(2, "0")}`;
+      const richtig = fmt(stunde, minute);
+      // Distraktoren
+      const andereMin = shuffle([0, 15, 30, 45].filter((m) => m !== minute));
+      const nachbarStunde = stunde === 12 ? 1 : stunde + 1;
+      const optionen = shuffle([
+        richtig,
+        fmt(stunde, andereMin[0]),
+        fmt(nachbarStunde, minute),
+        fmt(stunde, andereMin[1] ?? (minute === 0 ? 15 : 0)),
+      ]);
+      return {
+        thema: "mathe_uhr",
+        frage: "Wie viel Uhr ist es?",
+        antwort: richtig,
+        optionen,
+        visualisierung: { typ: "uhr", stunde, minute },
+        hinweis: "Kurzer Zeiger = Stunde, langer Zeiger = Minute.",
+      };
+    }
+    function matheAufgabeGeld() {
+      const muenzenKlein = [1, 2, 5, 10, 20, 50];
+      const muenzenGross = [100, 200];
+      const variante = pick(["summe", "summe", "rest"]);
+      if (variante === "summe") {
+        const anzahl = rand(2, 4);
+        const gewaehlt = [];
+        for (let i = 0; i < anzahl; i++) {
+          gewaehlt.push(pick([...muenzenKlein, ...muenzenKlein, ...muenzenGross]));
+        }
+        const summe = gewaehlt.reduce((a, b) => a + b, 0);
+        return {
+          thema: "mathe_geld",
+          frage: "Wie viel Geld ist das zusammen?",
+          antwort: geldFormat(summe),
+          optionen: shuffle([
+            geldFormat(summe),
+            geldFormat(summe + 10),
+            geldFormat(Math.max(1, summe - 5)),
+            geldFormat(summe + 50),
+          ]),
+          visualisierung: { typ: "muenzen", muenzen: gewaehlt },
+          hinweis: "Zähle die Münzen nacheinander zusammen.",
+        };
+      }
+      // Wechselgeld
+      const preis = rand(2, 9) * 10 + rand(0, 9); // ct
+      const gegeben = Math.ceil(preis / 100) * 100;
+      const rest = gegeben - preis;
+      return {
+        thema: "mathe_geld",
+        frage: `Du kaufst etwas für ${geldFormat(preis)}. Du gibst ${geldFormat(gegeben)}. Wie viel bekommst du zurück?`,
+        antwort: geldFormat(rest),
+        optionen: shuffle([
+          geldFormat(rest),
+          geldFormat(rest + 10),
+          geldFormat(Math.max(1, rest - 5)),
+          geldFormat(rest + 20),
+        ]),
+        hinweis: "Rest = Gegeben − Preis.",
+      };
+    }
+    function geldFormat(ct) {
+      if (ct === 0) return "0 ct";
+      if (ct < 100) return `${ct} ct`;
+      const e = Math.floor(ct / 100);
+      const c = ct % 100;
+      if (c === 0) return `${e} €`;
+      return `${e},${String(c).padStart(2, "0")} €`;
+    }
+
+    const matheTypen = [
+      { id: "mathe_plus",          erzeuge: matheAufgabePlus },
+      { id: "mathe_minus",         erzeuge: matheAufgabeMinus },
+      { id: "mathe_einmaleins_1",  erzeuge: () => matheAufgabeEinmaleins(1) },
+      { id: "mathe_einmaleins_2",  erzeuge: () => matheAufgabeEinmaleins(2) },
+      { id: "mathe_einmaleins_3",  erzeuge: () => matheAufgabeEinmaleins(3) },
+      { id: "mathe_einmaleins_4",  erzeuge: () => matheAufgabeEinmaleins(4) },
+      { id: "mathe_einmaleins_5",  erzeuge: () => matheAufgabeEinmaleins(5) },
+      { id: "mathe_einmaleins_10", erzeuge: () => matheAufgabeEinmaleins(10) },
+      { id: "mathe_vergleich",     erzeuge: matheAufgabeVergleich },
+      { id: "mathe_zehner",        erzeuge: matheAufgabeZehner },
+      { id: "mathe_uhr",           erzeuge: matheAufgabeUhr },
+      { id: "mathe_geld",          erzeuge: matheAufgabeGeld },
     ];
 
+    function genMatheAufgabe(themaStats) {
+      const typ = waehleGewichtet(matheTypen, (t) => t.id, themaStats);
+      return typ.erzeuge();
+    }
+
+    // ============================================================================
+    // DEUTSCH — Statische Aufgaben (mit Themen-Tag)
+    // ============================================================================
+    const deutschAufgaben = [
+      { thema: "deutsch_gross",       frage: "Welches Wort schreibt man groß?", optionen: ["hund", "Hund", "schnell", "rot"], antwort: "Hund", hinweis: "Nomen (Namenwörter) schreibt man groß." },
+      { thema: "deutsch_wortart",     frage: "Welches Wort ist ein Nomen?", optionen: ["laufen", "schön", "Apfel", "und"], antwort: "Apfel", hinweis: "Nomen sind Dinge, Personen, Tiere oder Pflanzen." },
+      { thema: "deutsch_gross",       frage: "Welches Wort schreibt man groß?", optionen: ["tasche", "grün", "Schule", "essen"], antwort: "Schule", hinweis: "Ein Ort/Gebäude ist ein Nomen." },
+      { thema: "deutsch_ie",          frage: "Wie schreibt man das Wort richtig?", optionen: ["Liebe", "Libe", "Liiebe", "Lieebe"], antwort: "Liebe", hinweis: "Langes i schreibt man oft 'ie'." },
+      { thema: "deutsch_ie",          frage: "Wie schreibt man das Wort richtig?", optionen: ["Tier", "Tir", "Tihr", "Thier"], antwort: "Tier", hinweis: "Langes i = ie." },
+      { thema: "deutsch_ie",          frage: "Wie schreibt man das Wort richtig?", optionen: ["Spil", "Spihl", "Spiel", "Spihel"], antwort: "Spiel", hinweis: "Langes i schreibt man 'ie'." },
+      { thema: "deutsch_wortart",     frage: "Welches Wort ist ein Verb (Tunwort)?", optionen: ["Baum", "rennen", "blau", "schnell"], antwort: "rennen", hinweis: "Verben sagen, was jemand tut." },
+      { thema: "deutsch_wortart",     frage: "Welches Wort ist ein Adjektiv (Wie-Wort)?", optionen: ["singen", "Katze", "fröhlich", "Tisch"], antwort: "fröhlich", hinweis: "Adjektive beschreiben, wie etwas ist." },
+      { thema: "deutsch_artikel",     frage: "Welcher Artikel passt? ___ Sonne", optionen: ["der", "die", "das"], antwort: "die", hinweis: "Sonne ist weiblich → die." },
+      { thema: "deutsch_artikel",     frage: "Welcher Artikel passt? ___ Hund", optionen: ["der", "die", "das"], antwort: "der", hinweis: "Hund ist männlich → der." },
+      { thema: "deutsch_artikel",     frage: "Welcher Artikel passt? ___ Kind", optionen: ["der", "die", "das"], antwort: "das", hinweis: "Kind ist sächlich → das." },
+      { thema: "deutsch_artikel",     frage: "Welcher Artikel passt? ___ Lehrerin", optionen: ["der", "die", "das"], antwort: "die", hinweis: "Lehrerin ist weiblich → die." },
+      { thema: "deutsch_silben",      frage: "Wie viele Silben hat 'Sonnenblume'?", optionen: ["2", "3", "4", "5"], antwort: "4", hinweis: "Son-nen-blu-me — vier Silben." },
+      { thema: "deutsch_silben",      frage: "Wie viele Silben hat 'Schule'?", optionen: ["1", "2", "3", "4"], antwort: "2", hinweis: "Schu-le — zwei Silben." },
+      { thema: "deutsch_cktz",        frage: "Wie schreibt man das Wort richtig?", optionen: ["Zucker", "Zuker", "Zukker", "Zukcer"], antwort: "Zucker", hinweis: "Nach kurzem Vokal: ck." },
+      { thema: "deutsch_cktz",        frage: "Wie schreibt man das Wort richtig?", optionen: ["Katse", "Kazze", "Katze", "Katzze"], antwort: "Katze", hinweis: "Nach kurzem Vokal: tz." },
+      { thema: "deutsch_satzzeichen", frage: "Welches Satzzeichen kommt ans Ende?  'Wie heißt du'", optionen: [".", "?", "!", ","], antwort: "?", hinweis: "Eine Frage endet mit '?'." },
+      { thema: "deutsch_satzzeichen", frage: "Welches Satzzeichen kommt ans Ende?  'Pass auf'", optionen: [".", "?", "!", ","], antwort: "!", hinweis: "Bei Ausrufen passt '!'." },
+      { thema: "deutsch_reim",        frage: "Was reimt sich auf 'Haus'?", optionen: ["Hund", "Maus", "Tisch", "Auto"], antwort: "Maus", hinweis: "Haus — Maus, beide enden auf -aus." },
+      { thema: "deutsch_reim",        frage: "Was reimt sich auf 'Katze'?", optionen: ["Hund", "Tatze", "Vogel", "Fisch"], antwort: "Tatze", hinweis: "Katze — Tatze, beide enden auf -atze." },
+      { thema: "deutsch_mehrzahl",    frage: "Wie heißt die Mehrzahl von 'Buch'?", optionen: ["Buchs", "Bücher", "Buche", "Buchen"], antwort: "Bücher", hinweis: "Ein Buch — viele Bücher." },
+      { thema: "deutsch_mehrzahl",    frage: "Wie heißt die Mehrzahl von 'Kind'?", optionen: ["Kinde", "Kinder", "Kindes", "Kindern"], antwort: "Kinder", hinweis: "Ein Kind — viele Kinder." },
+    ];
+
+    function genLernwortAufgabe(lernwoerter) {
+      if (!lernwoerter || lernwoerter.length === 0) return null;
+      const eintrag = pick(lernwoerter);
+      const distraktoren = (eintrag.distraktoren || []).filter((d) => d && d !== eintrag.wort);
+      const optionen = shuffle([eintrag.wort, ...distraktoren]).slice(0, 4);
+      return {
+        thema: "deutsch_lernwoerter",
+        frage: "Wie schreibt man das Wort richtig?",
+        antwort: eintrag.wort,
+        optionen: optionen.length >= 2 ? optionen : [eintrag.wort, "—", "—", "—"],
+        hinweis: "Lernwort aus deinem Schulheft.",
+      };
+    }
+
+    function genDeutschAlles(themaStats, lernwoerter) {
+      const poolStatisch = deutschAufgaben;
+      const hatLernwoerter = lernwoerter && lernwoerter.length > 0;
+      // Wenn Lernwörter da: mit Wahrscheinlichkeit nach Adaptiv-Gewicht ziehen
+      if (hatLernwoerter) {
+        const gewichtLW = gewichtFuerThema("deutsch_lernwoerter", themaStats);
+        const gewichtStatisch = 6; // Sammelgewicht für alle anderen Themen
+        if (Math.random() * (gewichtLW + gewichtStatisch) < gewichtLW) {
+          return genLernwortAufgabe(lernwoerter);
+        }
+      }
+      return pickAdaptiv(poolStatisch, themaStats);
+    }
+
+    // ============================================================================
+    // HSU — Bienen (mit Themen-Tag)
+    // ============================================================================
     const hsuBienen = [
-      { frage: "Wie viele Beine hat eine Biene?", optionen: ["4", "6", "8", "10"], antwort: "6", hinweis: "Bienen sind Insekten — alle Insekten haben 6 Beine." },
-      { frage: "Wie viele Flügel hat eine Biene?", optionen: ["2", "4", "6", "8"], antwort: "4", hinweis: "Zwei vorne und zwei hinten — zusammen 4 Flügel." },
-      { frage: "In wie viele Teile ist der Körper einer Biene geteilt?", optionen: ["2", "3", "4", "5"], antwort: "3", hinweis: "Kopf, Brust und Hinterleib — drei Teile." },
-      { frage: "Womit sammelt die Biene Blütenstaub?", optionen: ["Mit den Flügeln", "Mit den Fühlern", "Mit den Beinen", "Mit dem Stachel"], antwort: "Mit den Beinen", hinweis: "An den Hinterbeinen sind die 'Pollenhöschen'." },
-      { frage: "Womit riecht und fühlt die Biene?", optionen: ["Mit den Augen", "Mit den Fühlern", "Mit den Flügeln", "Mit dem Stachel"], antwort: "Mit den Fühlern", hinweis: "Die Fühler heißen auch Antennen." },
-      { frage: "Womit saugt die Biene den Nektar aus den Blüten?", optionen: ["Mit dem Stachel", "Mit den Beinen", "Mit dem Rüssel", "Mit den Fühlern"], antwort: "Mit dem Rüssel", hinweis: "Der Rüssel ist wie ein Strohhalm." },
-      { frage: "Wer legt im Bienenvolk die Eier?", optionen: ["Die Arbeiterin", "Die Drohne", "Die Königin", "Der Imker"], antwort: "Die Königin", hinweis: "Es gibt nur EINE Königin pro Volk." },
-      { frage: "Wie nennt man die männlichen Bienen?", optionen: ["Drohnen", "Wespen", "Hummeln", "Königinnen"], antwort: "Drohnen", hinweis: "Drohnen haben keinen Stachel." },
-      { frage: "Wer macht im Bienenvolk fast die ganze Arbeit?", optionen: ["Die Königin", "Die Drohnen", "Die Arbeiterinnen", "Der Imker"], antwort: "Die Arbeiterinnen", hinweis: "Tausende Arbeiterinnen kümmern sich um alles." },
-      { frage: "Wie viele Königinnen gibt es in einem Bienenvolk?", optionen: ["Eine", "Zwei", "Zehn", "Hundert"], antwort: "Eine", hinweis: "Nur eine einzige Königin regiert das Volk." },
-      { frage: "Wo wohnen Honigbienen?", optionen: ["Im Ameisenhaufen", "Im Bienenstock", "In der Erde", "Im Vogelnest"], antwort: "Im Bienenstock", hinweis: "Imker bauen Bienenkästen — das sind Bienenstöcke." },
-      { frage: "Wie heißen die kleinen Räume, in denen Bienen Honig lagern und ihre Babys großziehen?", optionen: ["Höhlen", "Waben", "Nester", "Töpfe"], antwort: "Waben", hinweis: "Die sechseckigen Zellen heißen Waben." },
-      { frage: "Welche Form haben die Waben einer Biene?", optionen: ["Rund", "Viereckig", "Sechseckig", "Dreieckig"], antwort: "Sechseckig", hinweis: "Sechs Ecken — eine schlaue Form, die viel Platz spart." },
-      { frage: "Was machen Bienen aus Nektar?", optionen: ["Milch", "Honig", "Wasser", "Saft"], antwort: "Honig", hinweis: "Im Bienenstock wird Nektar zu Honig." },
-      { frage: "Woraus bauen Bienen ihre Waben?", optionen: ["Aus Holz", "Aus Wachs", "Aus Erde", "Aus Papier"], antwort: "Aus Wachs", hinweis: "Bienen schwitzen das Wachs selbst aus dem Bauch." },
-      { frage: "Warum sind Bienen wichtig für die Natur?", optionen: ["Sie machen Lärm", "Sie bestäuben Blüten", "Sie fressen Schädlinge", "Sie bauen Nester für Vögel"], antwort: "Sie bestäuben Blüten", hinweis: "Ohne Bestäubung gäbe es kaum Obst und Gemüse." },
-      { frage: "Was heißt 'bestäuben'?", optionen: ["Staub wegmachen", "Blütenstaub von Blüte zu Blüte tragen", "Honig sammeln", "Wasser holen"], antwort: "Blütenstaub von Blüte zu Blüte tragen", hinweis: "So entstehen aus Blüten Früchte." },
-      { frage: "Was passiert, wenn keine Bienen mehr Blüten bestäuben?", optionen: ["Es regnet mehr", "Es wachsen weniger Früchte", "Es wird wärmer", "Nichts"], antwort: "Es wachsen weniger Früchte", hinweis: "Äpfel, Kirschen, Erdbeeren brauchen Bienen." },
-      { frage: "Wer kümmert sich um Bienen und holt den Honig?", optionen: ["Der Bauer", "Der Förster", "Der Imker", "Der Gärtner"], antwort: "Der Imker", hinweis: "Imker pflegen die Bienenvölker." },
-      { frage: "Wie tanzen Bienen, um anderen den Weg zu Blüten zu zeigen?", optionen: ["Sie pfeifen", "Sie schreiben", "Sie tanzen einen Schwänzeltanz", "Sie rufen laut"], antwort: "Sie tanzen einen Schwänzeltanz", hinweis: "Mit dem Tanz erzählen sie, wo das Futter ist." },
-      { frage: "Was passiert mit der Biene, wenn sie einen Menschen sticht?", optionen: ["Nichts", "Sie stirbt", "Sie wird größer", "Sie fliegt weg"], antwort: "Sie stirbt", hinweis: "Der Stachel bleibt stecken und reißt der Biene den Hinterleib auf." },
-      { frage: "Wie verhältst du dich am besten, wenn eine Biene um dich herumfliegt?", optionen: ["Schnell wegrennen", "Mit den Armen wedeln", "Ruhig stehen bleiben", "Nach ihr schlagen"], antwort: "Ruhig stehen bleiben", hinweis: "Bienen stechen nur, wenn sie sich bedroht fühlen." },
-      { frage: "Welche Bienen haben einen Stachel?", optionen: ["Nur die Königin und die Arbeiterinnen", "Nur die Drohnen", "Alle Bienen", "Keine Biene"], antwort: "Nur die Königin und die Arbeiterinnen", hinweis: "Die männlichen Drohnen haben keinen Stachel." },
-      { frage: "Was sammeln Bienen in den Blüten?", optionen: ["Nur Wasser", "Nektar und Pollen", "Honig", "Wachs"], antwort: "Nektar und Pollen", hinweis: "Nektar wird zu Honig, Pollen ist das 'Brot' der Bienen." },
-      { frage: "Was macht ein Bienenvolk im Winter?", optionen: ["Es schläft draußen", "Es fliegt nach Süden", "Es bleibt im Stock zusammen und wärmt sich", "Es stirbt komplett"], antwort: "Es bleibt im Stock zusammen und wärmt sich", hinweis: "Die Bienen bilden eine warme 'Wintertraube'." },
+      { thema: "bienen_koerper",  frage: "Wie viele Beine hat eine Biene?", optionen: ["4", "6", "8", "10"], antwort: "6", hinweis: "Bienen sind Insekten — alle Insekten haben 6 Beine." },
+      { thema: "bienen_koerper",  frage: "Wie viele Flügel hat eine Biene?", optionen: ["2", "4", "6", "8"], antwort: "4", hinweis: "Zwei vorne und zwei hinten — zusammen 4 Flügel." },
+      { thema: "bienen_koerper",  frage: "In wie viele Teile ist der Körper einer Biene geteilt?", optionen: ["2", "3", "4", "5"], antwort: "3", hinweis: "Kopf, Brust und Hinterleib — drei Teile." },
+      { thema: "bienen_koerper",  frage: "Womit sammelt die Biene Blütenstaub?", optionen: ["Mit den Flügeln", "Mit den Fühlern", "Mit den Beinen", "Mit dem Stachel"], antwort: "Mit den Beinen", hinweis: "An den Hinterbeinen sind die 'Pollenhöschen'." },
+      { thema: "bienen_koerper",  frage: "Womit riecht und fühlt die Biene?", optionen: ["Mit den Augen", "Mit den Fühlern", "Mit den Flügeln", "Mit dem Stachel"], antwort: "Mit den Fühlern", hinweis: "Die Fühler heißen auch Antennen." },
+      { thema: "bienen_koerper",  frage: "Womit saugt die Biene den Nektar aus den Blüten?", optionen: ["Mit dem Stachel", "Mit den Beinen", "Mit dem Rüssel", "Mit den Fühlern"], antwort: "Mit dem Rüssel", hinweis: "Der Rüssel ist wie ein Strohhalm." },
+      { thema: "bienen_volk",     frage: "Wer legt im Bienenvolk die Eier?", optionen: ["Die Arbeiterin", "Die Drohne", "Die Königin", "Der Imker"], antwort: "Die Königin", hinweis: "Es gibt nur EINE Königin pro Volk." },
+      { thema: "bienen_volk",     frage: "Wie nennt man die männlichen Bienen?", optionen: ["Drohnen", "Wespen", "Hummeln", "Königinnen"], antwort: "Drohnen", hinweis: "Drohnen haben keinen Stachel." },
+      { thema: "bienen_volk",     frage: "Wer macht im Bienenvolk fast die ganze Arbeit?", optionen: ["Die Königin", "Die Drohnen", "Die Arbeiterinnen", "Der Imker"], antwort: "Die Arbeiterinnen", hinweis: "Tausende Arbeiterinnen kümmern sich um alles." },
+      { thema: "bienen_volk",     frage: "Wie viele Königinnen gibt es in einem Bienenvolk?", optionen: ["Eine", "Zwei", "Zehn", "Hundert"], antwort: "Eine", hinweis: "Nur eine einzige Königin regiert das Volk." },
+      { thema: "bienen_stock",    frage: "Wo wohnen Honigbienen?", optionen: ["Im Ameisenhaufen", "Im Bienenstock", "In der Erde", "Im Vogelnest"], antwort: "Im Bienenstock", hinweis: "Imker bauen Bienenkästen — das sind Bienenstöcke." },
+      { thema: "bienen_stock",    frage: "Wie heißen die kleinen Räume, in denen Bienen Honig lagern und ihre Babys großziehen?", optionen: ["Höhlen", "Waben", "Nester", "Töpfe"], antwort: "Waben", hinweis: "Die sechseckigen Zellen heißen Waben." },
+      { thema: "bienen_stock",    frage: "Welche Form haben die Waben einer Biene?", optionen: ["Rund", "Viereckig", "Sechseckig", "Dreieckig"], antwort: "Sechseckig", hinweis: "Sechs Ecken — eine schlaue Form, die viel Platz spart." },
+      { thema: "bienen_stock",    frage: "Woraus bauen Bienen ihre Waben?", optionen: ["Aus Holz", "Aus Wachs", "Aus Erde", "Aus Papier"], antwort: "Aus Wachs", hinweis: "Bienen schwitzen das Wachs selbst aus dem Bauch." },
+      { thema: "bienen_aufgaben", frage: "Was machen Bienen aus Nektar?", optionen: ["Milch", "Honig", "Wasser", "Saft"], antwort: "Honig", hinweis: "Im Bienenstock wird Nektar zu Honig." },
+      { thema: "bienen_aufgaben", frage: "Warum sind Bienen wichtig für die Natur?", optionen: ["Sie machen Lärm", "Sie bestäuben Blüten", "Sie fressen Schädlinge", "Sie bauen Nester für Vögel"], antwort: "Sie bestäuben Blüten", hinweis: "Ohne Bestäubung gäbe es kaum Obst und Gemüse." },
+      { thema: "bienen_aufgaben", frage: "Was heißt 'bestäuben'?", optionen: ["Staub wegmachen", "Blütenstaub von Blüte zu Blüte tragen", "Honig sammeln", "Wasser holen"], antwort: "Blütenstaub von Blüte zu Blüte tragen", hinweis: "So entstehen aus Blüten Früchte." },
+      { thema: "bienen_aufgaben", frage: "Was passiert, wenn keine Bienen mehr Blüten bestäuben?", optionen: ["Es regnet mehr", "Es wachsen weniger Früchte", "Es wird wärmer", "Nichts"], antwort: "Es wachsen weniger Früchte", hinweis: "Äpfel, Kirschen, Erdbeeren brauchen Bienen." },
+      { thema: "bienen_aufgaben", frage: "Wer kümmert sich um Bienen und holt den Honig?", optionen: ["Der Bauer", "Der Förster", "Der Imker", "Der Gärtner"], antwort: "Der Imker", hinweis: "Imker pflegen die Bienenvölker." },
+      { thema: "bienen_aufgaben", frage: "Wie tanzen Bienen, um anderen den Weg zu Blüten zu zeigen?", optionen: ["Sie pfeifen", "Sie schreiben", "Sie tanzen einen Schwänzeltanz", "Sie rufen laut"], antwort: "Sie tanzen einen Schwänzeltanz", hinweis: "Mit dem Tanz erzählen sie, wo das Futter ist." },
+      { thema: "bienen_aufgaben", frage: "Was sammeln Bienen in den Blüten?", optionen: ["Nur Wasser", "Nektar und Pollen", "Honig", "Wachs"], antwort: "Nektar und Pollen", hinweis: "Nektar wird zu Honig, Pollen ist das 'Brot' der Bienen." },
+      { thema: "bienen_stachel",  frage: "Was passiert mit der Biene, wenn sie einen Menschen sticht?", optionen: ["Nichts", "Sie stirbt", "Sie wird größer", "Sie fliegt weg"], antwort: "Sie stirbt", hinweis: "Der Stachel bleibt stecken und reißt der Biene den Hinterleib auf." },
+      { thema: "bienen_stachel",  frage: "Wie verhältst du dich am besten, wenn eine Biene um dich herumfliegt?", optionen: ["Schnell wegrennen", "Mit den Armen wedeln", "Ruhig stehen bleiben", "Nach ihr schlagen"], antwort: "Ruhig stehen bleiben", hinweis: "Bienen stechen nur, wenn sie sich bedroht fühlen." },
+      { thema: "bienen_stachel",  frage: "Welche Bienen haben einen Stachel?", optionen: ["Nur die Königin und die Arbeiterinnen", "Nur die Drohnen", "Alle Bienen", "Keine Biene"], antwort: "Nur die Königin und die Arbeiterinnen", hinweis: "Die männlichen Drohnen haben keinen Stachel." },
+      { thema: "bienen_jahr",     frage: "Was macht ein Bienenvolk im Winter?", optionen: ["Es schläft draußen", "Es fliegt nach Süden", "Es bleibt im Stock zusammen und wärmt sich", "Es stirbt komplett"], antwort: "Es bleibt im Stock zusammen und wärmt sich", hinweis: "Die Bienen bilden eine warme 'Wintertraube'." },
     ];
 
     const hsuRest = [
-      { frage: "Welche Jahreszeit kommt nach dem Frühling?", optionen: ["Winter", "Herbst", "Sommer", "Frühling"], antwort: "Sommer", hinweis: "Frühling → Sommer → Herbst → Winter." },
-      { frage: "Wann fallen die Blätter von den Bäumen?", optionen: ["Frühling", "Sommer", "Herbst", "Winter"], antwort: "Herbst", hinweis: "Im Herbst werden Blätter bunt und fallen." },
-      { frage: "In welcher Jahreszeit blühen die meisten Blumen zuerst?", optionen: ["Winter", "Frühling", "Herbst", "Sommer"], antwort: "Frühling", hinweis: "Im Frühling erwacht die Natur." },
-      { frage: "Welches Tier ist ein Säugetier?", optionen: ["Forelle", "Adler", "Reh", "Frosch"], antwort: "Reh", hinweis: "Säugetiere säugen ihre Jungen mit Milch." },
-      { frage: "Was frisst ein Igel am liebsten?", optionen: ["Gras", "Würmer und Insekten", "Fische", "Nüsse"], antwort: "Würmer und Insekten", hinweis: "Der Igel ist ein Insektenfresser." },
-      { frage: "Welches Tier hält Winterschlaf?", optionen: ["Eichhörnchen", "Reh", "Igel", "Fuchs"], antwort: "Igel", hinweis: "Igel schlafen den ganzen Winter durch." },
-      { frage: "Wie viele Beine hat eine Spinne?", optionen: ["6", "8", "10", "4"], antwort: "8", hinweis: "Spinnen haben immer 8 Beine, Insekten nur 6." },
-      { frage: "Wie nennt man das Junge vom Schwein?", optionen: ["Kalb", "Lamm", "Ferkel", "Fohlen"], antwort: "Ferkel", hinweis: "Das Schweinejunge heißt Ferkel." },
-      { frage: "Wie nennt man das Junge vom Pferd?", optionen: ["Fohlen", "Kalb", "Welpe", "Küken"], antwort: "Fohlen", hinweis: "Ein junges Pferd heißt Fohlen." },
-      { frage: "In welchem Bundesland liegt Berg?", optionen: ["Hessen", "Bayern", "Sachsen", "Baden-Württemberg"], antwort: "Bayern", hinweis: "Berg liegt in Bayern." },
-      { frage: "Wie heißt die Hauptstadt von Bayern?", optionen: ["Nürnberg", "Augsburg", "München", "Regensburg"], antwort: "München", hinweis: "München ist die Landeshauptstadt." },
-      { frage: "Welche Farben hat die bayerische Flagge?", optionen: ["Rot-Gold", "Schwarz-Rot-Gold", "Weiß-Blau", "Grün-Weiß"], antwort: "Weiß-Blau", hinweis: "Bayern hat eine weiß-blaue Rautenflagge." },
-      { frage: "Was bedeutet eine rote Ampel für Fußgänger?", optionen: ["Gehen", "Warten", "Schnell laufen", "Egal"], antwort: "Warten", hinweis: "Rot heißt immer stehenbleiben." },
-      { frage: "Wo überquerst du am sichersten die Straße?", optionen: ["Zwischen Autos", "Am Zebrastreifen", "Mitten auf der Straße", "Hinter einem Bus"], antwort: "Am Zebrastreifen", hinweis: "Zebrastreifen sind extra für Fußgänger." },
-      { frage: "Auf welcher Seite des Gehwegs gehst du am sichersten?", optionen: ["Nah am Auto", "Nah an Häusern", "In der Mitte", "Auf der Straße"], antwort: "Nah an Häusern", hinweis: "Möglichst weit weg von fahrenden Autos." },
-      { frage: "Welches Organ pumpt das Blut durch den Körper?", optionen: ["Lunge", "Herz", "Magen", "Leber"], antwort: "Herz", hinweis: "Das Herz schlägt Tag und Nacht." },
-      { frage: "Womit atmen wir?", optionen: ["Mit dem Magen", "Mit dem Herzen", "Mit der Lunge", "Mit der Leber"], antwort: "Mit der Lunge", hinweis: "Die Lunge holt Luft in den Körper." },
-      { frage: "Wie viele Zähne hat ein Erwachsener normal?", optionen: ["20", "24", "32", "40"], antwort: "32", hinweis: "Kinder haben weniger — Milchzähne." },
-      { frage: "Wie viele Stunden hat ein Tag?", optionen: ["12", "24", "20", "60"], antwort: "24", hinweis: "Ein Tag und eine Nacht zusammen: 24 Stunden." },
-      { frage: "Wie viele Minuten hat eine Stunde?", optionen: ["30", "50", "60", "100"], antwort: "60", hinweis: "Eine Stunde besteht aus 60 Minuten." },
-      { frage: "Welcher Tag kommt nach Mittwoch?", optionen: ["Dienstag", "Donnerstag", "Freitag", "Sonntag"], antwort: "Donnerstag", hinweis: "Mo–Di–Mi–Do–Fr–Sa–So." },
-      { frage: "Wie viele Monate hat ein Jahr?", optionen: ["10", "11", "12", "14"], antwort: "12", hinweis: "Januar bis Dezember — 12 Monate." },
-      { frage: "Was brauchen Pflanzen zum Wachsen?", optionen: ["Nur Wasser", "Licht, Wasser und Erde", "Nur Licht", "Schokolade"], antwort: "Licht, Wasser und Erde", hinweis: "Pflanzen brauchen alle drei zusammen." },
-      { frage: "Welcher Teil der Pflanze ist unter der Erde?", optionen: ["Blüte", "Stängel", "Wurzel", "Blatt"], antwort: "Wurzel", hinweis: "Die Wurzel hält die Pflanze und nimmt Wasser auf." },
-    ];
-
-    const tiere = [
-      { name: "Marienkäfer", emoji: "🐞", schwelle: 0 },
-      { name: "Biene", emoji: "🐝", schwelle: 3 },
-      { name: "Schmetterling", emoji: "🦋", schwelle: 8 },
-      { name: "Frosch", emoji: "🐸", schwelle: 15 },
-      { name: "Eichhörnchen", emoji: "🐿️", schwelle: 30 },
-      { name: "Igel", emoji: "🦔", schwelle: 50 },
-      { name: "Reh", emoji: "🦌", schwelle: 75 },
-      { name: "Fuchs", emoji: "🦊", schwelle: 100 },
-      { name: "Eule", emoji: "🦉", schwelle: 130 },
-      { name: "Pferd", emoji: "🐴", schwelle: 170 },
-      { name: "Bär", emoji: "🐻", schwelle: 220 },
+      { thema: "hsu_jahreszeiten", frage: "Welche Jahreszeit kommt nach dem Frühling?", optionen: ["Winter", "Herbst", "Sommer", "Frühling"], antwort: "Sommer", hinweis: "Frühling → Sommer → Herbst → Winter." },
+      { thema: "hsu_jahreszeiten", frage: "Wann fallen die Blätter von den Bäumen?", optionen: ["Frühling", "Sommer", "Herbst", "Winter"], antwort: "Herbst", hinweis: "Im Herbst werden Blätter bunt und fallen." },
+      { thema: "hsu_jahreszeiten", frage: "In welcher Jahreszeit blühen die meisten Blumen zuerst?", optionen: ["Winter", "Frühling", "Herbst", "Sommer"], antwort: "Frühling", hinweis: "Im Frühling erwacht die Natur." },
+      { thema: "hsu_tiere",        frage: "Welches Tier ist ein Säugetier?", optionen: ["Forelle", "Adler", "Reh", "Frosch"], antwort: "Reh", hinweis: "Säugetiere säugen ihre Jungen mit Milch." },
+      { thema: "hsu_tiere",        frage: "Was frisst ein Igel am liebsten?", optionen: ["Gras", "Würmer und Insekten", "Fische", "Nüsse"], antwort: "Würmer und Insekten", hinweis: "Der Igel ist ein Insektenfresser." },
+      { thema: "hsu_tiere",        frage: "Welches Tier hält Winterschlaf?", optionen: ["Eichhörnchen", "Reh", "Igel", "Fuchs"], antwort: "Igel", hinweis: "Igel schlafen den ganzen Winter durch." },
+      { thema: "hsu_tiere",        frage: "Wie viele Beine hat eine Spinne?", optionen: ["6", "8", "10", "4"], antwort: "8", hinweis: "Spinnen haben immer 8 Beine, Insekten nur 6." },
+      { thema: "hsu_tiere",        frage: "Wie nennt man das Junge vom Schwein?", optionen: ["Kalb", "Lamm", "Ferkel", "Fohlen"], antwort: "Ferkel", hinweis: "Das Schweinejunge heißt Ferkel." },
+      { thema: "hsu_tiere",        frage: "Wie nennt man das Junge vom Pferd?", optionen: ["Fohlen", "Kalb", "Welpe", "Küken"], antwort: "Fohlen", hinweis: "Ein junges Pferd heißt Fohlen." },
+      { thema: "hsu_heimat",       frage: "In welchem Bundesland liegt Berg?", optionen: ["Hessen", "Bayern", "Sachsen", "Baden-Württemberg"], antwort: "Bayern", hinweis: "Berg liegt in Bayern." },
+      { thema: "hsu_heimat",       frage: "Wie heißt die Hauptstadt von Bayern?", optionen: ["Nürnberg", "Augsburg", "München", "Regensburg"], antwort: "München", hinweis: "München ist die Landeshauptstadt." },
+      { thema: "hsu_heimat",       frage: "Welche Farben hat die bayerische Flagge?", optionen: ["Rot-Gold", "Schwarz-Rot-Gold", "Weiß-Blau", "Grün-Weiß"], antwort: "Weiß-Blau", hinweis: "Bayern hat eine weiß-blaue Rautenflagge." },
+      { thema: "hsu_verkehr",      frage: "Was bedeutet eine rote Ampel für Fußgänger?", optionen: ["Gehen", "Warten", "Schnell laufen", "Egal"], antwort: "Warten", hinweis: "Rot heißt immer stehenbleiben." },
+      { thema: "hsu_verkehr",      frage: "Wo überquerst du am sichersten die Straße?", optionen: ["Zwischen Autos", "Am Zebrastreifen", "Mitten auf der Straße", "Hinter einem Bus"], antwort: "Am Zebrastreifen", hinweis: "Zebrastreifen sind extra für Fußgänger." },
+      { thema: "hsu_verkehr",      frage: "Auf welcher Seite des Gehwegs gehst du am sichersten?", optionen: ["Nah am Auto", "Nah an Häusern", "In der Mitte", "Auf der Straße"], antwort: "Nah an Häusern", hinweis: "Möglichst weit weg von fahrenden Autos." },
+      { thema: "hsu_koerper",      frage: "Welches Organ pumpt das Blut durch den Körper?", optionen: ["Lunge", "Herz", "Magen", "Leber"], antwort: "Herz", hinweis: "Das Herz schlägt Tag und Nacht." },
+      { thema: "hsu_koerper",      frage: "Womit atmen wir?", optionen: ["Mit dem Magen", "Mit dem Herzen", "Mit der Lunge", "Mit der Leber"], antwort: "Mit der Lunge", hinweis: "Die Lunge holt Luft in den Körper." },
+      { thema: "hsu_koerper",      frage: "Wie viele Zähne hat ein Erwachsener normal?", optionen: ["20", "24", "32", "40"], antwort: "32", hinweis: "Kinder haben weniger — Milchzähne." },
+      { thema: "hsu_zeit",         frage: "Wie viele Stunden hat ein Tag?", optionen: ["12", "24", "20", "60"], antwort: "24", hinweis: "Ein Tag und eine Nacht zusammen: 24 Stunden." },
+      { thema: "hsu_zeit",         frage: "Wie viele Minuten hat eine Stunde?", optionen: ["30", "50", "60", "100"], antwort: "60", hinweis: "Eine Stunde besteht aus 60 Minuten." },
+      { thema: "hsu_zeit",         frage: "Welcher Tag kommt nach Mittwoch?", optionen: ["Dienstag", "Donnerstag", "Freitag", "Sonntag"], antwort: "Donnerstag", hinweis: "Mo–Di–Mi–Do–Fr–Sa–So." },
+      { thema: "hsu_zeit",         frage: "Wie viele Monate hat ein Jahr?", optionen: ["10", "11", "12", "14"], antwort: "12", hinweis: "Januar bis Dezember — 12 Monate." },
+      { thema: "hsu_pflanzen",     frage: "Was brauchen Pflanzen zum Wachsen?", optionen: ["Nur Wasser", "Licht, Wasser und Erde", "Nur Licht", "Schokolade"], antwort: "Licht, Wasser und Erde", hinweis: "Pflanzen brauchen alle drei zusammen." },
+      { thema: "hsu_pflanzen",     frage: "Welcher Teil der Pflanze ist unter der Erde?", optionen: ["Blüte", "Stängel", "Wurzel", "Blatt"], antwort: "Wurzel", hinweis: "Die Wurzel hält die Pflanze und nimmt Wasser auf." },
     ];
 
     // ============================================================================
-    // Sound (Web Audio, ohne externe Dateien)
+    // BELOHNUNGS-TIERE
+    // ============================================================================
+    const tiere = [
+      { name: "Marienkäfer",   emoji: "🐞", schwelle: 0 },
+      { name: "Biene",         emoji: "🐝", schwelle: 3 },
+      { name: "Schmetterling", emoji: "🦋", schwelle: 8 },
+      { name: "Frosch",        emoji: "🐸", schwelle: 15 },
+      { name: "Eichhörnchen",  emoji: "🐿️", schwelle: 30 },
+      { name: "Igel",          emoji: "🦔", schwelle: 50 },
+      { name: "Reh",           emoji: "🦌", schwelle: 75 },
+      { name: "Fuchs",         emoji: "🦊", schwelle: 100 },
+      { name: "Eule",          emoji: "🦉", schwelle: 130 },
+      { name: "Pferd",         emoji: "🐴", schwelle: 170 },
+      { name: "Bär",           emoji: "🐻", schwelle: 220 },
+    ];
+
+    const PROFIL_EMOJIS = ["🐝","🦋","🐞","🐸","🐿️","🦔","🦌","🦊","🦉","🐴","🐻","🐱","🐶","🐰","🦄","🐯","🐨","🦁"];
+
+    // ============================================================================
+    // SOUND (Web Audio, ohne externe Dateien)
     // ============================================================================
     function playTone(freq, dauer = 0.15, typ = "sine") {
       try {
@@ -208,120 +479,454 @@
       } catch (e) {}
     }
     const soundRichtig = () => { playTone(660, 0.12); setTimeout(() => playTone(880, 0.18), 100); };
-    const soundFalsch = () => playTone(180, 0.25, "square");
-    const soundStern = () => { playTone(1320, 0.08); setTimeout(() => playTone(1760, 0.12), 80); };
+    const soundFalsch  = () => playTone(180, 0.25, "square");
+    const soundStern   = () => { playTone(1320, 0.08); setTimeout(() => playTone(1760, 0.12), 80); };
+    const soundKlick   = () => playTone(520, 0.05);
 
     // ============================================================================
-    // Mini-Icons (inline SVG, damit wir keine lucide-Bibliothek brauchen)
+    // ICONS
     // ============================================================================
     const Icon = ({ d, className = "w-6 h-6", fill = "none" }) => (
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill={fill}
            stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
            className={className}>{d}</svg>
     );
-    const IconStar = (p) => <Icon {...p} d={<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>}/>;
-    const IconTrophy = (p) => <Icon {...p} d={<><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></>}/>;
+    const IconStar     = (p) => <Icon {...p} d={<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>}/>;
+    const IconTrophy   = (p) => <Icon {...p} d={<><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></>}/>;
     const IconSparkles = (p) => <Icon {...p} d={<><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/></>}/>;
-    const IconHome = (p) => <Icon {...p} d={<><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></>}/>;
+    const IconHome     = (p) => <Icon {...p} d={<><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></>}/>;
     const IconChevronLeft = (p) => <Icon {...p} d={<polyline points="15 18 9 12 15 6"/>}/>;
-    const IconCheck = (p) => <Icon {...p} d={<polyline points="20 6 9 17 4 12"/>}/>;
-    const IconX = (p) => <Icon {...p} d={<><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></>}/>;
-    const IconCalc = (p) => <Icon {...p} d={<><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="8" y2="10"/><line x1="12" y1="10" x2="12" y2="10"/><line x1="16" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="8" y2="14"/><line x1="12" y1="14" x2="12" y2="14"/><line x1="16" y1="14" x2="16" y2="14"/><line x1="8" y1="18" x2="8" y2="18"/><line x1="12" y1="18" x2="12" y2="18"/><line x1="16" y1="18" x2="16" y2="18"/></>}/>;
-    const IconBook = (p) => <Icon {...p} d={<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V2H6.5A2.5 2.5 0 0 0 4 4.5v15zM4 19.5V22h16"/>}/>;
-    const IconLeaf = (p) => <Icon {...p} d={<><path d="M11 20A7 7 0 0 1 4 13c0-7 8-9 16-9-1 8-3 16-9 16"/><path d="M2 22c4-4 6-6 10-10"/></>}/>;
-    const IconLock = (p) => <Icon {...p} d={<><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></>}/>;
-    const IconReset = (p) => <Icon {...p} d={<><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></>}/>;
-    const IconAward = (p) => <Icon {...p} d={<><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></>}/>;
+    const IconCheck    = (p) => <Icon {...p} d={<polyline points="20 6 9 17 4 12"/>}/>;
+    const IconX        = (p) => <Icon {...p} d={<><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></>}/>;
+    const IconCalc     = (p) => <Icon {...p} d={<><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="8" y2="10"/><line x1="12" y1="10" x2="12" y2="10"/><line x1="16" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="8" y2="14"/><line x1="12" y1="14" x2="12" y2="14"/><line x1="16" y1="14" x2="16" y2="14"/><line x1="8" y1="18" x2="8" y2="18"/><line x1="12" y1="18" x2="12" y2="18"/><line x1="16" y1="18" x2="16" y2="18"/></>}/>;
+    const IconBook     = (p) => <Icon {...p} d={<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V2H6.5A2.5 2.5 0 0 0 4 4.5v15zM4 19.5V22h16"/>}/>;
+    const IconLeaf     = (p) => <Icon {...p} d={<><path d="M11 20A7 7 0 0 1 4 13c0-7 8-9 16-9-1 8-3 16-9 16"/><path d="M2 22c4-4 6-6 10-10"/></>}/>;
+    const IconLock     = (p) => <Icon {...p} d={<><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></>}/>;
+    const IconReset    = (p) => <Icon {...p} d={<><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></>}/>;
+    const IconAward    = (p) => <Icon {...p} d={<><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></>}/>;
+    const IconChart    = (p) => <Icon {...p} d={<><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/><line x1="3" y1="20" x2="21" y2="20"/></>}/>;
+    const IconUsers    = (p) => <Icon {...p} d={<><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><path d="M20 8v6M23 11h-6"/></>}/>;
+    const IconKey      = (p) => <Icon {...p} d={<><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></>}/>;
+    const IconPlus     = (p) => <Icon {...p} d={<><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></>}/>;
+    const IconTrash    = (p) => <Icon {...p} d={<><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14H7L5 6"/><path d="M10 11v6M14 11v6"/></>}/>;
 
     // ============================================================================
-    // Storage (LocalStorage als simpler Drop-in)
+    // VISUALISIERUNGEN
     // ============================================================================
-    const Storage = {
-      get(key) {
-        try { const v = localStorage.getItem(key); return v ? { value: v } : null; }
-        catch(e) { return null; }
-      },
-      set(key, value) { try { localStorage.setItem(key, value); } catch(e) {} },
-      delete(key) { try { localStorage.removeItem(key); } catch(e) {} },
-    };
+    function AnalogUhr({ stunde, minute }) {
+      const stundenWinkel = (stunde % 12) * 30 + minute * 0.5;
+      const minutenWinkel = minute * 6;
+      const toRad = (g) => (g - 90) * Math.PI / 180;
+      const stx = 50 + Math.cos(toRad(stundenWinkel)) * 22;
+      const sty = 50 + Math.sin(toRad(stundenWinkel)) * 22;
+      const mtx = 50 + Math.cos(toRad(minutenWinkel)) * 32;
+      const mty = 50 + Math.sin(toRad(minutenWinkel)) * 32;
+      return (
+        <svg viewBox="0 0 100 100" className="w-48 h-48 md:w-56 md:h-56 mx-auto drop-shadow-md">
+          <circle cx="50" cy="50" r="46" fill="white" stroke="#92400e" strokeWidth="3"/>
+          {[...Array(12)].map((_, i) => {
+            const w = i * 30 - 90;
+            const r = i % 3 === 0 ? 5 : 3;
+            const x1 = 50 + Math.cos(w * Math.PI / 180) * (46 - r);
+            const y1 = 50 + Math.sin(w * Math.PI / 180) * (46 - r);
+            const x2 = 50 + Math.cos(w * Math.PI / 180) * 44;
+            const y2 = 50 + Math.sin(w * Math.PI / 180) * 44;
+            return <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke="#92400e" strokeWidth={i % 3 === 0 ? 2.5 : 1.5}/>;
+          })}
+          {[
+            [12, 0, -34],
+            [3, 34, 0],
+            [6, 0, 34],
+            [9, -34, 0],
+          ].map(([z, dx, dy]) => (
+            <text key={z} x={50 + dx} y={50 + dy + 4} textAnchor="middle" fontSize="11" fontWeight="bold" fill="#92400e">{z}</text>
+          ))}
+          <line x1="50" y1="50" x2={stx} y2={sty} stroke="#92400e" strokeWidth="4.5" strokeLinecap="round"/>
+          <line x1="50" y1="50" x2={mtx} y2={mty} stroke="#dc2626" strokeWidth="3" strokeLinecap="round"/>
+          <circle cx="50" cy="50" r="3.2" fill="#92400e"/>
+        </svg>
+      );
+    }
+
+    function MuenzenAnzeige({ muenzen }) {
+      const stil = (ct) => {
+        if (ct < 10) return "bg-gradient-to-br from-amber-600 to-amber-800 text-amber-50";
+        if (ct < 100) return "bg-gradient-to-br from-yellow-300 to-amber-500 text-amber-900";
+        return "bg-gradient-to-br from-yellow-200 via-amber-400 to-yellow-500 text-amber-900 ring-2 ring-slate-300";
+      };
+      const beschr = (ct) => ct < 100 ? `${ct} ct` : `${ct / 100} €`;
+      return (
+        <div className="flex flex-wrap justify-center gap-3 py-4">
+          {muenzen.map((ct, i) => (
+            <div key={i} className={`${stil(ct)} rounded-full w-16 h-16 md:w-20 md:h-20 flex items-center justify-center font-bold text-sm md:text-base shadow-md border-2 border-white`}>
+              {beschr(ct)}
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    // ============================================================================
+    // PROFIL-VERWALTUNG (Lade/Speicher-Helfer)
+    // ============================================================================
+    function ladeProfile() {
+      return Storage.getJson(KEY_PROFILE, []);
+    }
+    function speichereProfile(profile) {
+      Storage.setJson(KEY_PROFILE, profile);
+    }
+    function ladeProfilDaten(id) {
+      return Storage.getJson(keyProfilDaten(id), { sterne: 0, richtigeGesamt: 0, themaStats: {} });
+    }
+    function speichereProfilDaten(id, daten) {
+      Storage.setJson(keyProfilDaten(id), daten);
+    }
+    function ladeLernwoerter(id) {
+      return Storage.getJson(keyLernwoerter(id), []);
+    }
+    function speichereLernwoerter(id, woerter) {
+      Storage.setJson(keyLernwoerter(id), woerter);
+    }
+    function neueProfilId() {
+      return "p" + Date.now().toString(36) + Math.floor(Math.random() * 1000).toString(36);
+    }
 
     // ============================================================================
     // HAUPT-KOMPONENTE
     // ============================================================================
     function Lernapp() {
-      const [screen, setScreen] = useState("home");
-      const [sterne, setSterne] = useState(0);
-      const [richtigeGesamt, setRichtigeGesamt] = useState(0);
-      const [fachStats, setFachStats] = useState({ mathe: 0, deutsch: 0, hsu: 0 });
       const [geladen, setGeladen] = useState(false);
+      const [profile, setProfile] = useState([]);
+      const [aktivId, setAktivId] = useState(null);
+      const [aktivDaten, setAktivDaten] = useState({ sterne: 0, richtigeGesamt: 0, themaStats: {} });
+      const [lernwoerter, setLernwoerter] = useState([]);
+      const [screen, setScreen] = useState("home");
+      const [pinModus, setPinModus] = useState(null);  // null | "setup" | "eingabe"
+      const [pinFolgeScreen, setPinFolgeScreen] = useState(null);
+      const [profilMenu, setProfilMenu] = useState(false);
+      const [migrationsModal, setMigrationsModal] = useState(false);
+      const [altSterne, setAltSterne] = useState(0);
+      const [altRichtige, setAltRichtige] = useState(0);
 
+      // Initialer Lade-Vorgang
       useEffect(() => {
-        const r = Storage.get("lernapp_fortschritt");
-        if (r && r.value) {
-          try {
-            const d = JSON.parse(r.value);
-            setSterne(d.sterne || 0);
-            setRichtigeGesamt(d.richtigeGesamt || 0);
-            setFachStats(d.fachStats || { mathe: 0, deutsch: 0, hsu: 0 });
-          } catch(e) {}
+        const vorhandene = ladeProfile();
+        const migriert = Storage.get(KEY_MIGRIERT);
+        const altDaten = Storage.getJson(KEY_ALT, null);
+
+        if (vorhandene.length === 0) {
+          // Erst-Setup
+          if (!migriert && altDaten) {
+            setAltSterne(altDaten.sterne || 0);
+            setAltRichtige(altDaten.richtigeGesamt || 0);
+          }
+          setMigrationsModal(true);
+          setGeladen(true);
+          return;
         }
+
+        let aktiv = Storage.get(KEY_AKTIV);
+        if (!aktiv || !vorhandene.find((p) => p.id === aktiv)) {
+          aktiv = vorhandene[0].id;
+          Storage.set(KEY_AKTIV, aktiv);
+        }
+        setProfile(vorhandene);
+        setAktivId(aktiv);
+        setAktivDaten(ladeProfilDaten(aktiv));
+        setLernwoerter(ladeLernwoerter(aktiv));
         setGeladen(true);
       }, []);
 
+      // Daten persistieren bei jeder Änderung
       useEffect(() => {
-        if (!geladen) return;
-        Storage.set("lernapp_fortschritt", JSON.stringify({ sterne, richtigeGesamt, fachStats }));
-      }, [sterne, richtigeGesamt, fachStats, geladen]);
+        if (!geladen || !aktivId) return;
+        speichereProfilDaten(aktivId, aktivDaten);
+      }, [aktivDaten, aktivId, geladen]);
 
-      const reset = () => {
-        setSterne(0); setRichtigeGesamt(0);
-        setFachStats({ mathe: 0, deutsch: 0, hsu: 0 });
-        Storage.delete("lernapp_fortschritt");
+      const profilAnlegen = (name, emoji, sterneStart = 0, richtigeStart = 0) => {
+        const id = neueProfilId();
+        const neuesProfil = { id, name, emoji };
+        const neuListe = [...profile, neuesProfil];
+        setProfile(neuListe);
+        speichereProfile(neuListe);
+        const daten = { sterne: sterneStart, richtigeGesamt: richtigeStart, themaStats: {} };
+        speichereProfilDaten(id, daten);
+        Storage.set(KEY_AKTIV, id);
+        setAktivId(id);
+        setAktivDaten(daten);
+        setLernwoerter([]);
+        return id;
       };
 
-      const aufgabeRichtig = (fach) => {
-        setSterne((s) => s + 1);
-        setRichtigeGesamt((r) => r + 1);
-        setFachStats((f) => ({ ...f, [fach]: (f[fach] || 0) + 1 }));
+      const migrationAbschliessen = (name, emoji, mitAltDaten) => {
+        const id = profilAnlegen(name, emoji,
+          mitAltDaten ? altSterne : 0,
+          mitAltDaten ? altRichtige : 0);
+        Storage.set(KEY_MIGRIERT, "1");
+        Storage.del(KEY_ALT);
+        setMigrationsModal(false);
       };
 
+      const profilWechseln = (id) => {
+        if (id === aktivId) { setProfilMenu(false); return; }
+        // aktive Daten vorher sichern (geschieht durch useEffect)
+        setAktivId(id);
+        Storage.set(KEY_AKTIV, id);
+        setAktivDaten(ladeProfilDaten(id));
+        setLernwoerter(ladeLernwoerter(id));
+        setScreen("home");
+        setProfilMenu(false);
+      };
+
+      const profilLoeschen = (id) => {
+        if (profile.length <= 1) return;
+        Storage.del(keyProfilDaten(id));
+        Storage.del(keyLernwoerter(id));
+        const neuListe = profile.filter((p) => p.id !== id);
+        setProfile(neuListe);
+        speichereProfile(neuListe);
+        if (id === aktivId) {
+          const neu = neuListe[0];
+          setAktivId(neu.id);
+          Storage.set(KEY_AKTIV, neu.id);
+          setAktivDaten(ladeProfilDaten(neu.id));
+          setLernwoerter(ladeLernwoerter(neu.id));
+        }
+      };
+
+      const aufgabeRichtig = (thema) => {
+        setAktivDaten((d) => {
+          const s = d.themaStats[thema] || { richtig: 0, falsch: 0 };
+          return {
+            sterne: d.sterne + 1,
+            richtigeGesamt: d.richtigeGesamt + 1,
+            themaStats: { ...d.themaStats, [thema]: { richtig: s.richtig + 1, falsch: s.falsch } },
+          };
+        });
+      };
+      const aufgabeFalsch = (thema) => {
+        setAktivDaten((d) => {
+          const s = d.themaStats[thema] || { richtig: 0, falsch: 0 };
+          return {
+            ...d,
+            themaStats: { ...d.themaStats, [thema]: { richtig: s.richtig, falsch: s.falsch + 1 } },
+          };
+        });
+      };
+
+      const resetProfil = () => {
+        setAktivDaten({ sterne: 0, richtigeGesamt: 0, themaStats: {} });
+        speichereLernwoerter(aktivId, lernwoerter); // Lernwörter bleiben
+      };
+
+      const elternEintreten = (folgeScreen) => {
+        const gespeicherter = Storage.get(KEY_PIN);
+        setPinFolgeScreen(folgeScreen);
+        setPinModus(gespeicherter ? "eingabe" : "setup");
+      };
+
+      const pinErfolgreich = () => {
+        setPinModus(null);
+        if (pinFolgeScreen) setScreen(pinFolgeScreen);
+        setPinFolgeScreen(null);
+      };
+
+      const pinAbbrechen = () => {
+        setPinModus(null);
+        setPinFolgeScreen(null);
+      };
+
+      const aktivesProfil = profile.find((p) => p.id === aktivId);
+
+      // === Lade-Schirm ===
       if (!geladen) {
         return <div className="min-h-screen flex items-center justify-center bg-amber-50">
           <div className="text-2xl text-amber-900">Lade…</div>
         </div>;
       }
 
+      // === Erst-Setup / Migration ===
+      if (migrationsModal) {
+        return <MigrationsModal
+          altSterne={altSterne} altRichtige={altRichtige}
+          onFertig={migrationAbschliessen}/>;
+      }
+
+      // === Hintergrund + Layout ===
       return (
         <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50">
           <div className="fixed inset-0 pointer-events-none opacity-30"
-               style={{ backgroundImage: "radial-gradient(circle at 20% 30%, #fbbf24 0%, transparent 30%), radial-gradient(circle at 80% 70%, #fb923c 0%, transparent 30%)" }} />
+               style={{ backgroundImage: "radial-gradient(circle at 20% 30%, #fbbf24 0%, transparent 30%), radial-gradient(circle at 80% 70%, #fb923c 0%, transparent 30%)" }}/>
           <div className="relative z-10 max-w-4xl mx-auto p-4 md:p-8">
-            {screen === "home" && <HomeScreen sterne={sterne} richtigeGesamt={richtigeGesamt} fachStats={fachStats}
-                onFach={(f) => setScreen(f)} onGarten={() => setScreen("garten")} onReset={reset} />}
-            {screen === "mathe" && <QuizScreen fach="mathe" titel="Mathe" farbe="bg-sky-500" farbeHell="bg-sky-100" farbeText="text-sky-700"
-                icon={<IconCalc/>} aufgabenQuelle={() => genMatheAufgabe()}
-                onZurueck={() => setScreen("home")} onRichtig={() => aufgabeRichtig("mathe")} />}
-            {screen === "deutsch" && <QuizScreen fach="deutsch" titel="Deutsch" farbe="bg-rose-500" farbeHell="bg-rose-100" farbeText="text-rose-700"
-                icon={<IconBook/>} aufgabenQuelle={() => pick(deutschAufgaben)}
-                onZurueck={() => setScreen("home")} onRichtig={() => aufgabeRichtig("deutsch")} />}
-            {screen === "hsu" && <HsuAuswahlScreen onZurueck={() => setScreen("home")} onThema={(t) => setScreen(t)} />}
-            {screen === "hsu_bienen" && <QuizScreen fach="hsu" titel="Bienen 🐝" farbe="bg-amber-500" farbeHell="bg-amber-100" farbeText="text-amber-800"
-                icon={<IconLeaf/>} aufgabenQuelle={() => pick(hsuBienen)}
-                onZurueck={() => setScreen("hsu")} onRichtig={() => aufgabeRichtig("hsu")} />}
-            {screen === "hsu_alles" && <QuizScreen fach="hsu" titel="HSU — Alles" farbe="bg-emerald-500" farbeHell="bg-emerald-100" farbeText="text-emerald-700"
-                icon={<IconLeaf/>} aufgabenQuelle={() => pick([...hsuBienen, ...hsuRest])}
-                onZurueck={() => setScreen("hsu")} onRichtig={() => aufgabeRichtig("hsu")} />}
-            {screen === "garten" && <GartenScreen sterne={sterne} onZurueck={() => setScreen("home")} />}
+            {screen === "home" && <HomeScreen
+              aktivesProfil={aktivesProfil}
+              sterne={aktivDaten.sterne} richtigeGesamt={aktivDaten.richtigeGesamt}
+              themaStats={aktivDaten.themaStats}
+              onFach={(f) => setScreen(f)} onGarten={() => setScreen("garten")}
+              onStatistik={() => setScreen("statistik")}
+              onProfilMenu={() => setProfilMenu(true)}
+              onEltern={() => elternEintreten("eltern")}/>}
+
+            {screen === "mathe" && <QuizScreen
+              titel="Mathe" farbe="bg-sky-500" farbeHell="bg-sky-100" farbeText="text-sky-700"
+              icon={<IconCalc/>}
+              aufgabenQuelle={() => genMatheAufgabe(aktivDaten.themaStats)}
+              onZurueck={() => setScreen("home")}
+              onRichtig={aufgabeRichtig} onFalsch={aufgabeFalsch}/>}
+
+            {screen === "deutsch" && <DeutschAuswahlScreen
+              hatLernwoerter={lernwoerter.length > 0}
+              onZurueck={() => setScreen("home")}
+              onThema={(t) => setScreen(t)}/>}
+            {screen === "deutsch_alles" && <QuizScreen
+              titel="Deutsch" farbe="bg-rose-500" farbeHell="bg-rose-100" farbeText="text-rose-700"
+              icon={<IconBook/>}
+              aufgabenQuelle={() => genDeutschAlles(aktivDaten.themaStats, lernwoerter)}
+              onZurueck={() => setScreen("deutsch")}
+              onRichtig={aufgabeRichtig} onFalsch={aufgabeFalsch}/>}
+            {screen === "deutsch_lernwoerter" && <QuizScreen
+              titel="Lernwörter" farbe="bg-rose-500" farbeHell="bg-rose-100" farbeText="text-rose-700"
+              icon={<IconBook/>}
+              aufgabenQuelle={() => genLernwortAufgabe(lernwoerter) ||
+                { thema: "deutsch_lernwoerter", frage: "Es gibt noch keine Lernwörter — bitte Eltern fragen.",
+                  antwort: "OK", optionen: ["OK"], hinweis: "Eltern können im Eltern-Modus Lernwörter eintragen." }}
+              onZurueck={() => setScreen("deutsch")}
+              onRichtig={aufgabeRichtig} onFalsch={aufgabeFalsch}/>}
+
+            {screen === "hsu" && <HsuAuswahlScreen
+              onZurueck={() => setScreen("home")} onThema={(t) => setScreen(t)}/>}
+            {screen === "hsu_bienen" && <QuizScreen
+              titel="Bienen 🐝" farbe="bg-amber-500" farbeHell="bg-amber-100" farbeText="text-amber-800"
+              icon={<IconLeaf/>}
+              aufgabenQuelle={() => pickAdaptiv(hsuBienen, aktivDaten.themaStats)}
+              onZurueck={() => setScreen("hsu")}
+              onRichtig={aufgabeRichtig} onFalsch={aufgabeFalsch}/>}
+            {screen === "hsu_alles" && <QuizScreen
+              titel="HSU — Alles" farbe="bg-emerald-500" farbeHell="bg-emerald-100" farbeText="text-emerald-700"
+              icon={<IconLeaf/>}
+              aufgabenQuelle={() => pickAdaptiv([...hsuBienen, ...hsuRest], aktivDaten.themaStats)}
+              onZurueck={() => setScreen("hsu")}
+              onRichtig={aufgabeRichtig} onFalsch={aufgabeFalsch}/>}
+
+            {screen === "garten" && <GartenScreen sterne={aktivDaten.sterne} onZurueck={() => setScreen("home")}/>}
+            {screen === "statistik" && <StatistikScreen themaStats={aktivDaten.themaStats} onZurueck={() => setScreen("home")}/>}
+
+            {screen === "eltern" && <ElternScreen
+              aktivId={aktivId} profile={profile}
+              onZurueck={() => setScreen("home")}
+              onLernwoerter={() => setScreen("eltern_lernwoerter")}
+              onProfileVerwalten={() => setScreen("eltern_profile")}
+              onPinAendern={() => setScreen("eltern_pin")}
+              onReset={resetProfil}/>}
+            {screen === "eltern_lernwoerter" && <LernwoerterScreen
+              profilId={aktivId} woerter={lernwoerter}
+              onAendern={(neu) => { setLernwoerter(neu); speichereLernwoerter(aktivId, neu); }}
+              onZurueck={() => setScreen("eltern")}/>}
+            {screen === "eltern_profile" && <ProfileVerwaltenScreen
+              profile={profile} aktivId={aktivId}
+              onNeu={(name, emoji) => profilAnlegen(name, emoji)}
+              onLoeschen={profilLoeschen}
+              onZurueck={() => setScreen("eltern")}/>}
+            {screen === "eltern_pin" && <PinAendernScreen
+              onFertig={() => setScreen("eltern")}
+              onZurueck={() => setScreen("eltern")}/>}
+          </div>
+
+          {/* Overlays */}
+          {profilMenu && <ProfilMenu
+            profile={profile} aktivId={aktivId}
+            onWechseln={profilWechseln}
+            onNeu={() => { setProfilMenu(false); elternEintreten("eltern_profile"); }}
+            onSchliessen={() => setProfilMenu(false)}/>}
+
+          {pinModus && <PinDialog
+            modus={pinModus}
+            onErfolg={pinErfolgreich}
+            onAbbruch={pinAbbrechen}/>}
+        </div>
+      );
+    }
+
+    // ============================================================================
+    // MIGRATIONS-MODAL — erstes Profil anlegen
+    // ============================================================================
+    function MigrationsModal({ altSterne, altRichtige, onFertig }) {
+      const [name, setName] = useState("");
+      const [emoji, setEmoji] = useState(PROFIL_EMOJIS[0]);
+      const hatAltDaten = altSterne > 0 || altRichtige > 0;
+      const fertig = () => {
+        if (!name.trim()) return;
+        onFertig(name.trim(), emoji, hatAltDaten);
+      };
+      return (
+        <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-6 md:p-8 shadow-2xl border-4 border-amber-200 max-w-md w-full" style={{ animation: "fadeIn 0.4s ease-out" }}>
+            <div className="text-center">
+              <div className="text-6xl mb-2">{emoji}</div>
+              <h1 className="text-3xl font-extrabold text-amber-900">Willkommen!</h1>
+              <p className="text-amber-700 mt-2">Wie heißt du?</p>
+            </div>
+            <input type="text" value={name} onChange={(e) => setName(e.target.value)}
+              placeholder="Dein Name"
+              className="w-full mt-5 px-4 py-3 text-2xl text-center border-4 border-amber-300 rounded-2xl focus:outline-none focus:border-amber-500 text-amber-900 font-bold"
+              maxLength={20}/>
+            <div className="mt-5">
+              <p className="text-center text-amber-700 mb-2 font-semibold">Wähle dein Tier:</p>
+              <div className="grid grid-cols-6 gap-2">
+                {PROFIL_EMOJIS.map((e) => (
+                  <button key={e} onClick={() => { setEmoji(e); soundKlick(); }}
+                    className={`text-3xl p-2 rounded-2xl transition-all ${emoji === e ? "bg-amber-300 scale-110 ring-4 ring-amber-500" : "bg-amber-50 hover:bg-amber-100"}`}>
+                    {e}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {hatAltDaten && (
+              <div className="mt-5 bg-emerald-50 border-2 border-emerald-200 rounded-2xl p-3 text-center text-sm text-emerald-700">
+                Dein bisheriger Stand wird übernommen: <b>{altSterne}</b> Sterne, <b>{altRichtige}</b> richtige Antworten.
+              </div>
+            )}
+            <button onClick={fertig} disabled={!name.trim()}
+              className="w-full mt-6 bg-gradient-to-r from-amber-400 to-orange-500 text-white rounded-2xl py-4 text-xl font-bold shadow-lg active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+              Los geht's!
+            </button>
           </div>
         </div>
       );
     }
 
-    function HomeScreen({ sterne, richtigeGesamt, fachStats, onFach, onGarten, onReset }) {
+    // ============================================================================
+    // HOME-SCREEN
+    // ============================================================================
+    function HomeScreen({ aktivesProfil, sterne, richtigeGesamt, themaStats, onFach, onGarten, onStatistik, onProfilMenu, onEltern }) {
       const naechstesTier = tiere.find((t) => t.schwelle > sterne);
+      const fachStats = useMemo(() => {
+        const out = { Mathe: 0, Deutsch: 0, Bienen: 0, HSU: 0 };
+        Object.entries(themaStats).forEach(([id, s]) => {
+          const t = THEMEN.find((x) => x.id === id);
+          if (t) out[t.fach] = (out[t.fach] || 0) + (s.richtig || 0);
+        });
+        return out;
+      }, [themaStats]);
+      const hsuSumme = (fachStats["Bienen"] || 0) + (fachStats["HSU"] || 0);
       return (
         <div className="space-y-6">
-          <div className="text-center pt-4">
+          {/* Profil-Pille */}
+          <div className="flex items-center justify-between">
+            <button onClick={onProfilMenu}
+              className="bg-white rounded-full pl-2 pr-4 py-2 shadow-md hover:shadow-lg active:scale-95 transition-all flex items-center gap-2 border-2 border-amber-200">
+              <span className="text-3xl">{aktivesProfil?.emoji}</span>
+              <span className="font-bold text-amber-900">{aktivesProfil?.name}</span>
+              <IconChevronLeft className="w-4 h-4 text-amber-500 -rotate-90"/>
+            </button>
+            <button onClick={onEltern} title="Eltern-Modus"
+              className="bg-white rounded-2xl px-3 py-2 shadow-md hover:shadow-lg active:scale-95 transition-all flex items-center gap-1 text-amber-700">
+              <IconKey className="w-5 h-5"/>
+              <span className="hidden md:inline font-semibold text-sm">Eltern</span>
+            </button>
+          </div>
+
+          <div className="text-center pt-2">
             <h1 className="text-5xl md:text-6xl font-extrabold text-amber-900 tracking-tight">Lernspaß</h1>
             <p className="text-lg text-amber-700 mt-2">2. Klasse · Schwarzwaldtalschule Berg</p>
           </div>
@@ -362,27 +967,28 @@
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <FachKarte titel="Mathe" beschreibung="Rechnen bis 100, Einmaleins" icon={<IconCalc className="w-10 h-10"/>}
-                farbe="from-sky-400 to-sky-600" richtige={fachStats.mathe || 0} onClick={() => onFach("mathe")}/>
-            <FachKarte titel="Deutsch" beschreibung="Wörter, Sätze, Rechtschreibung" icon={<IconBook className="w-10 h-10"/>}
-                farbe="from-rose-400 to-rose-600" richtige={fachStats.deutsch || 0} onClick={() => onFach("deutsch")}/>
+            <FachKarte titel="Mathe" beschreibung="Rechnen, Einmaleins, Uhr, Geld" icon={<IconCalc className="w-10 h-10"/>}
+              farbe="from-sky-400 to-sky-600" richtige={fachStats["Mathe"] || 0} onClick={() => onFach("mathe")}/>
+            <FachKarte titel="Deutsch" beschreibung="Wörter, Sätze, Lernwörter" icon={<IconBook className="w-10 h-10"/>}
+              farbe="from-rose-400 to-rose-600" richtige={fachStats["Deutsch"] || 0} onClick={() => onFach("deutsch")}/>
             <FachKarte titel="HSU" beschreibung="Natur, Tiere, Heimat" icon={<IconLeaf className="w-10 h-10"/>}
-                farbe="from-emerald-400 to-emerald-600" richtige={fachStats.hsu || 0} onClick={() => onFach("hsu")}/>
+              farbe="from-emerald-400 to-emerald-600" richtige={hsuSumme} onClick={() => onFach("hsu")}/>
           </div>
 
-          <button onClick={onGarten}
-              className="w-full bg-gradient-to-r from-orange-400 via-amber-400 to-yellow-400 text-white rounded-3xl p-6 shadow-lg hover:shadow-xl active:scale-[0.98] transition-all border-4 border-white">
-            <div className="flex items-center justify-center gap-3">
-              <IconSparkles className="w-8 h-8"/>
-              <span className="text-2xl font-bold">Mein Tier-Garten</span>
-              <IconSparkles className="w-8 h-8"/>
-            </div>
-          </button>
-
-          <div className="text-center pt-4">
-            <button onClick={() => { if (window.confirm("Wirklich allen Fortschritt löschen?")) onReset(); }}
-                className="text-sm text-amber-700 hover:text-amber-900 underline inline-flex items-center gap-1">
-              <IconReset className="w-4 h-4"/> Fortschritt zurücksetzen
+          <div className="grid grid-cols-2 gap-4">
+            <button onClick={onGarten}
+              className="bg-gradient-to-r from-orange-400 via-amber-400 to-yellow-400 text-white rounded-3xl p-5 shadow-lg hover:shadow-xl active:scale-[0.98] transition-all border-4 border-white">
+              <div className="flex items-center justify-center gap-2">
+                <IconSparkles className="w-7 h-7"/>
+                <span className="text-xl md:text-2xl font-bold">Tier-Garten</span>
+              </div>
+            </button>
+            <button onClick={onStatistik}
+              className="bg-gradient-to-r from-violet-400 to-fuchsia-500 text-white rounded-3xl p-5 shadow-lg hover:shadow-xl active:scale-[0.98] transition-all border-4 border-white">
+              <div className="flex items-center justify-center gap-2">
+                <IconChart className="w-7 h-7"/>
+                <span className="text-xl md:text-2xl font-bold">Mein Fortschritt</span>
+              </div>
             </button>
           </div>
         </div>
@@ -392,7 +998,7 @@
     function FachKarte({ titel, beschreibung, icon, farbe, richtige, onClick }) {
       return (
         <button onClick={onClick}
-            className={`bg-gradient-to-br ${farbe} text-white rounded-3xl p-6 shadow-lg hover:shadow-2xl active:scale-[0.97] transition-all border-4 border-white text-left`}>
+          className={`bg-gradient-to-br ${farbe} text-white rounded-3xl p-6 shadow-lg hover:shadow-2xl active:scale-[0.97] transition-all border-4 border-white text-left`}>
           <div className="flex items-start justify-between">
             <div className="bg-white/25 rounded-2xl p-3">{icon}</div>
             <div className="bg-white/30 rounded-full px-3 py-1 text-sm font-semibold">{richtige} ✓</div>
@@ -403,12 +1009,94 @@
       );
     }
 
+    // ============================================================================
+    // PROFIL-MENU (Overlay)
+    // ============================================================================
+    function ProfilMenu({ profile, aktivId, onWechseln, onNeu, onSchliessen }) {
+      return (
+        <div className="fixed inset-0 bg-black/40 z-40 flex items-start justify-center pt-20 p-4" onClick={onSchliessen}>
+          <div className="bg-white rounded-3xl p-5 shadow-2xl max-w-sm w-full border-4 border-amber-200"
+               style={{ animation: "fadeIn 0.2s ease-out" }}
+               onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-xl font-bold text-amber-900 text-center mb-3">Wer übt jetzt?</h3>
+            <div className="space-y-2">
+              {profile.map((p) => (
+                <button key={p.id} onClick={() => onWechseln(p.id)}
+                  className={`w-full flex items-center gap-3 p-3 rounded-2xl transition-all ${p.id === aktivId ? "bg-amber-200 ring-2 ring-amber-500" : "bg-amber-50 hover:bg-amber-100"}`}>
+                  <span className="text-3xl">{p.emoji}</span>
+                  <span className="font-bold text-amber-900 text-lg">{p.name}</span>
+                  {p.id === aktivId && <IconCheck className="w-5 h-5 ml-auto text-amber-600"/>}
+                </button>
+              ))}
+            </div>
+            <button onClick={onNeu}
+              className="w-full mt-3 bg-gradient-to-r from-emerald-400 to-emerald-500 text-white rounded-2xl py-3 font-bold flex items-center justify-center gap-2 active:scale-95 transition-all">
+              <IconPlus className="w-5 h-5"/> Neues Profil
+            </button>
+            <button onClick={onSchliessen}
+              className="w-full mt-2 text-amber-700 text-sm py-2 hover:text-amber-900">
+              Schließen
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    // ============================================================================
+    // DEUTSCH-AUSWAHL
+    // ============================================================================
+    function DeutschAuswahlScreen({ hatLernwoerter, onZurueck, onThema }) {
+      return (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <button onClick={onZurueck}
+              className="bg-white rounded-2xl px-4 py-3 shadow-md hover:shadow-lg active:scale-95 transition-all flex items-center gap-2">
+              <IconChevronLeft className="w-5 h-5"/><IconHome className="w-5 h-5"/>
+            </button>
+            <h2 className="text-3xl md:text-4xl font-extrabold text-rose-800">Deutsch — Was möchtest du üben?</h2>
+            <div className="w-20"/>
+          </div>
+          <button onClick={() => onThema("deutsch_lernwoerter")} disabled={!hatLernwoerter}
+            className={`w-full rounded-3xl p-7 shadow-xl active:scale-[0.98] transition-all border-4 border-white relative overflow-hidden text-left ${
+              hatLernwoerter
+                ? "bg-gradient-to-br from-rose-400 via-pink-400 to-fuchsia-500 text-white hover:shadow-2xl"
+                : "bg-gray-200 text-gray-500 cursor-not-allowed"}`}>
+            <div className="flex items-center gap-5">
+              <div className="text-6xl">📖</div>
+              <div>
+                <div className="text-xs uppercase tracking-wider font-bold bg-white/30 rounded-full px-3 py-1 inline-block mb-2">
+                  Aus deinem Schulheft
+                </div>
+                <h3 className="text-3xl md:text-4xl font-extrabold">Lernwörter</h3>
+                <p className="mt-1 text-base opacity-90">
+                  {hatLernwoerter ? "Deine eigenen Wörter zum Üben" : "Bitte Eltern fragen — noch keine Wörter eingetragen"}
+                </p>
+              </div>
+            </div>
+          </button>
+          <button onClick={() => onThema("deutsch_alles")}
+            className="w-full bg-gradient-to-br from-rose-400 to-rose-600 text-white rounded-3xl p-6 shadow-lg hover:shadow-xl active:scale-[0.98] transition-all border-4 border-white">
+            <div className="flex items-center gap-4 text-left">
+              <div className="text-5xl">✏️</div>
+              <div>
+                <h3 className="text-2xl md:text-3xl font-bold">Alle Deutsch-Aufgaben</h3>
+                <p className="text-white/90 mt-1">Großschreibung, ie, Artikel, Silben, Wortarten, Reime …</p>
+              </div>
+            </div>
+          </button>
+        </div>
+      );
+    }
+
+    // ============================================================================
+    // HSU-AUSWAHL
+    // ============================================================================
     function HsuAuswahlScreen({ onZurueck, onThema }) {
       return (
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <button onClick={onZurueck}
-                className="bg-white rounded-2xl px-4 py-3 shadow-md hover:shadow-lg active:scale-95 transition-all flex items-center gap-2">
+              className="bg-white rounded-2xl px-4 py-3 shadow-md hover:shadow-lg active:scale-95 transition-all flex items-center gap-2">
               <IconChevronLeft className="w-5 h-5"/><IconHome className="w-5 h-5"/>
             </button>
             <h2 className="text-3xl md:text-4xl font-extrabold text-emerald-800">HSU — Welches Thema?</h2>
@@ -416,7 +1104,7 @@
           </div>
           <p className="text-center text-emerald-700">Wähle ein Thema zum Üben:</p>
           <button onClick={() => onThema("hsu_bienen")}
-              className="w-full bg-gradient-to-br from-amber-400 via-yellow-400 to-orange-400 text-white rounded-3xl p-8 shadow-xl hover:shadow-2xl active:scale-[0.98] transition-all border-4 border-white relative overflow-hidden">
+            className="w-full bg-gradient-to-br from-amber-400 via-yellow-400 to-orange-400 text-white rounded-3xl p-8 shadow-xl hover:shadow-2xl active:scale-[0.98] transition-all border-4 border-white relative overflow-hidden">
             <div className="absolute inset-0 opacity-20 pointer-events-none text-7xl flex flex-wrap gap-2 p-4">
               <span>🍯</span><span>🌼</span><span>🐝</span><span>🌸</span>
               <span>🌻</span><span>🐝</span><span>🌺</span>
@@ -433,7 +1121,7 @@
             </div>
           </button>
           <button onClick={() => onThema("hsu_alles")}
-              className="w-full bg-gradient-to-br from-emerald-400 to-emerald-600 text-white rounded-3xl p-6 shadow-lg hover:shadow-xl active:scale-[0.98] transition-all border-4 border-white">
+            className="w-full bg-gradient-to-br from-emerald-400 to-emerald-600 text-white rounded-3xl p-6 shadow-lg hover:shadow-xl active:scale-[0.98] transition-all border-4 border-white">
             <div className="flex items-center gap-4">
               <div className="text-5xl">🌍</div>
               <div className="text-left">
@@ -446,7 +1134,10 @@
       );
     }
 
-    function QuizScreen({ fach, titel, farbe, farbeHell, farbeText, icon, aufgabenQuelle, onZurueck, onRichtig }) {
+    // ============================================================================
+    // QUIZ-SCREEN
+    // ============================================================================
+    function QuizScreen({ titel, farbe, farbeHell, farbeText, icon, aufgabenQuelle, onZurueck, onRichtig, onFalsch }) {
       const [aufgabe, setAufgabe] = useState(() => aufgabenQuelle());
       const [gewaehlt, setGewaehlt] = useState(null);
       const [zeigeFeedback, setZeigeFeedback] = useState(false);
@@ -462,7 +1153,9 @@
         const ist_richtig = String(option) === String(aufgabe.antwort);
         setRunde((r) => ({ richtig: r.richtig + (ist_richtig ? 1 : 0), gesamt: r.gesamt + 1 }));
         if (ist_richtig) {
-          soundRichtig(); onRichtig(); setSerie((s) => s + 1);
+          soundRichtig();
+          if (aufgabe.thema) onRichtig(aufgabe.thema);
+          setSerie((s) => s + 1);
           const neu = Array.from({ length: 12 }, (_, i) => ({
             id: Date.now() + i, x: Math.random() * 100,
             emoji: pick(["⭐", "✨", "🌟", "💫"]), delay: Math.random() * 200,
@@ -470,7 +1163,11 @@
           setKonfetti(neu);
           setTimeout(() => setKonfetti([]), 1500);
           if ((serie + 1) % 5 === 0) setTimeout(soundStern, 400);
-        } else { soundFalsch(); setSerie(0); }
+        } else {
+          soundFalsch();
+          if (aufgabe.thema) onFalsch(aufgabe.thema);
+          setSerie(0);
+        }
       };
 
       const ist_richtig = gewaehlt !== null && String(gewaehlt) === String(aufgabe.antwort);
@@ -486,7 +1183,7 @@
 
           <div className="flex items-center justify-between">
             <button onClick={onZurueck}
-                className="bg-white rounded-2xl px-4 py-3 shadow-md hover:shadow-lg active:scale-95 transition-all flex items-center gap-2">
+              className="bg-white rounded-2xl px-4 py-3 shadow-md hover:shadow-lg active:scale-95 transition-all flex items-center gap-2">
               <IconChevronLeft className="w-5 h-5"/><IconHome className="w-5 h-5"/>
             </button>
             <div className={`${farbe} text-white rounded-2xl px-5 py-3 shadow-md flex items-center gap-2 font-bold text-lg`}>
@@ -507,6 +1204,12 @@
           <div className="bg-white rounded-3xl p-6 md:p-8 shadow-xl border-4 border-amber-200">
             <div className={`${farbeHell} ${farbeText} rounded-2xl p-5 mb-6`}>
               <p className="text-xl md:text-3xl font-bold text-center leading-relaxed">{aufgabe.frage}</p>
+              {aufgabe.visualisierung && aufgabe.visualisierung.typ === "uhr" && (
+                <div className="mt-4"><AnalogUhr stunde={aufgabe.visualisierung.stunde} minute={aufgabe.visualisierung.minute}/></div>
+              )}
+              {aufgabe.visualisierung && aufgabe.visualisierung.typ === "muenzen" && (
+                <MuenzenAnzeige muenzen={aufgabe.visualisierung.muenzen}/>
+              )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -521,7 +1224,7 @@
                 }
                 return (
                   <button key={i} onClick={() => antworten(opt)} disabled={zeigeFeedback}
-                      className={`${stil} border-4 rounded-2xl py-5 px-4 text-2xl font-bold shadow-md active:scale-95 transition-all flex items-center justify-center gap-2`}>
+                    className={`${stil} border-4 rounded-2xl py-5 px-4 text-2xl font-bold shadow-md active:scale-95 transition-all flex items-center justify-center gap-2`}>
                     {zeigeFeedback && richtigeDiese && <IconCheck className="w-7 h-7"/>}
                     {zeigeFeedback && gewaehltDiese && !richtigeDiese && <IconX className="w-7 h-7"/>}
                     {opt}
@@ -551,7 +1254,7 @@
                   </div>
                 )}
                 <button onClick={naechste}
-                    className={`${farbe} text-white w-full rounded-2xl py-4 text-xl font-bold shadow-lg hover:shadow-xl active:scale-[0.98] transition-all`}>
+                  className={`${farbe} text-white w-full rounded-2xl py-4 text-xl font-bold shadow-lg hover:shadow-xl active:scale-[0.98] transition-all`}>
                   Nächste Aufgabe →
                 </button>
               </div>
@@ -561,6 +1264,9 @@
       );
     }
 
+    // ============================================================================
+    // GARTEN-SCREEN
+    // ============================================================================
     function GartenScreen({ sterne, onZurueck }) {
       const freigeschaltet = tiere.filter((t) => t.schwelle <= sterne);
       const gesperrt = tiere.filter((t) => t.schwelle > sterne);
@@ -568,7 +1274,7 @@
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <button onClick={onZurueck}
-                className="bg-white rounded-2xl px-4 py-3 shadow-md hover:shadow-lg active:scale-95 transition-all flex items-center gap-2">
+              className="bg-white rounded-2xl px-4 py-3 shadow-md hover:shadow-lg active:scale-95 transition-all flex items-center gap-2">
               <IconChevronLeft className="w-5 h-5"/><IconHome className="w-5 h-5"/>
             </button>
             <h2 className="text-3xl md:text-4xl font-extrabold text-amber-900">Mein Tier-Garten</h2>
@@ -576,7 +1282,6 @@
               <IconStar className="w-5 h-5" fill="currentColor"/> {sterne}
             </div>
           </div>
-
           <div className="bg-gradient-to-b from-sky-200 via-emerald-100 to-amber-100 rounded-3xl p-6 md:p-8 shadow-xl border-4 border-white">
             <p className="text-center text-emerald-800 font-semibold mb-4">
               {freigeschaltet.length} von {tiere.length} Tieren gefunden!
@@ -596,12 +1301,480 @@
               ))}
             </div>
           </div>
-
           <div className="bg-white rounded-3xl p-5 shadow-md border-2 border-amber-200 text-center">
             <p className="text-amber-700">
               <IconAward className="w-5 h-5 inline mr-1"/>
               Sammle Sterne, indem du Aufgaben richtig löst — jedes neue Tier wartet auf dich!
             </p>
+          </div>
+        </div>
+      );
+    }
+
+    // ============================================================================
+    // STATISTIK-SCREEN
+    // ============================================================================
+    function StatistikScreen({ themaStats, onZurueck }) {
+      const gruppen = useMemo(() => {
+        const out = {};
+        THEMEN.forEach((t) => {
+          if (!out[t.fach]) out[t.fach] = [];
+          const s = themaStats[t.id] || { richtig: 0, falsch: 0 };
+          out[t.fach].push({ ...t, ...s });
+        });
+        return out;
+      }, [themaStats]);
+      const reihenfolge = ["Mathe", "Deutsch", "Bienen", "HSU"];
+      return (
+        <div className="space-y-5">
+          <div className="flex items-center justify-between">
+            <button onClick={onZurueck}
+              className="bg-white rounded-2xl px-4 py-3 shadow-md hover:shadow-lg active:scale-95 transition-all flex items-center gap-2">
+              <IconChevronLeft className="w-5 h-5"/><IconHome className="w-5 h-5"/>
+            </button>
+            <h2 className="text-3xl md:text-4xl font-extrabold text-violet-800">Mein Fortschritt</h2>
+            <div className="w-20"/>
+          </div>
+          {reihenfolge.map((fach) => (
+            <div key={fach} className="bg-white rounded-3xl p-5 shadow-md border-4 border-amber-100">
+              <h3 className="text-2xl font-extrabold text-amber-900 mb-3">{fach}</h3>
+              <div className="space-y-2">
+                {(gruppen[fach] || []).map((t) => {
+                  const total = t.richtig + t.falsch;
+                  const quote = total === 0 ? 0 : Math.round((t.richtig / total) * 100);
+                  return (
+                    <div key={t.id} className="space-y-1">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="font-semibold text-amber-900">{t.name}</span>
+                        <span className="text-amber-600">
+                          {total === 0
+                            ? <span className="text-gray-400 italic">noch nicht geübt</span>
+                            : <span>{t.richtig} ✓ · {t.falsch} ✗ · <b className={quote >= 85 ? "text-emerald-600" : quote >= 60 ? "text-amber-600" : "text-rose-600"}>{quote} %</b></span>}
+                        </span>
+                      </div>
+                      <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                        {total > 0 && (
+                          <div className={`h-full transition-all ${quote >= 85 ? "bg-emerald-500" : quote >= 60 ? "bg-amber-500" : "bg-rose-500"}`}
+                               style={{ width: `${quote}%` }}/>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    // ============================================================================
+    // ELTERN-SCREEN
+    // ============================================================================
+    function ElternScreen({ aktivId, profile, onZurueck, onLernwoerter, onProfileVerwalten, onPinAendern, onReset }) {
+      const aktiv = profile.find((p) => p.id === aktivId);
+      return (
+        <div className="space-y-5">
+          <div className="flex items-center justify-between">
+            <button onClick={onZurueck}
+              className="bg-white rounded-2xl px-4 py-3 shadow-md hover:shadow-lg active:scale-95 transition-all flex items-center gap-2">
+              <IconChevronLeft className="w-5 h-5"/><IconHome className="w-5 h-5"/>
+            </button>
+            <h2 className="text-3xl md:text-4xl font-extrabold text-slate-800">Eltern-Modus</h2>
+            <div className="w-20"/>
+          </div>
+          <div className="bg-amber-50 rounded-2xl p-4 border-2 border-amber-200 text-center text-sm text-amber-800">
+            Aktives Profil: <span className="font-bold">{aktiv?.emoji} {aktiv?.name}</span> — Einstellungen wirken auf dieses Profil.
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <ElternKarte titel="Lernwörter pflegen" beschreibung="Wörter aus dem Schulheft eintragen und verwalten"
+              icon={<IconBook className="w-8 h-8"/>} farbe="from-rose-400 to-rose-600" onClick={onLernwoerter}/>
+            <ElternKarte titel="Profile verwalten" beschreibung="Neue Profile anlegen oder löschen"
+              icon={<IconUsers className="w-8 h-8"/>} farbe="from-sky-400 to-sky-600" onClick={onProfileVerwalten}/>
+            <ElternKarte titel="PIN ändern" beschreibung="Eltern-PIN neu setzen"
+              icon={<IconKey className="w-8 h-8"/>} farbe="from-violet-400 to-violet-600" onClick={onPinAendern}/>
+            <ElternKarte titel="Fortschritt zurücksetzen" beschreibung="Sterne und Statistik dieses Profils löschen"
+              icon={<IconReset className="w-8 h-8"/>} farbe="from-amber-500 to-orange-600"
+              onClick={() => { if (window.confirm(`Wirklich Fortschritt von ${aktiv?.name} zurücksetzen? Lernwörter bleiben erhalten.`)) onReset(); }}/>
+          </div>
+        </div>
+      );
+    }
+
+    function ElternKarte({ titel, beschreibung, icon, farbe, onClick }) {
+      return (
+        <button onClick={onClick}
+          className={`bg-gradient-to-br ${farbe} text-white rounded-3xl p-5 shadow-lg hover:shadow-xl active:scale-[0.97] transition-all border-4 border-white text-left`}>
+          <div className="bg-white/25 rounded-2xl p-3 w-fit">{icon}</div>
+          <h3 className="text-xl font-bold mt-3">{titel}</h3>
+          <p className="text-white/90 text-sm mt-1">{beschreibung}</p>
+        </button>
+      );
+    }
+
+    // ============================================================================
+    // LERNWÖRTER-PFLEGE
+    // ============================================================================
+    function LernwoerterScreen({ profilId, woerter, onAendern, onZurueck }) {
+      const [wort, setWort] = useState("");
+      const [d1, setD1] = useState("");
+      const [d2, setD2] = useState("");
+      const [d3, setD3] = useState("");
+      const kannHinzufuegen = wort.trim() && d1.trim() && d2.trim() && d3.trim();
+
+      const hinzufuegen = () => {
+        if (!kannHinzufuegen) return;
+        const neu = [...woerter, {
+          wort: wort.trim(),
+          distraktoren: [d1.trim(), d2.trim(), d3.trim()],
+        }];
+        onAendern(neu);
+        setWort(""); setD1(""); setD2(""); setD3("");
+      };
+
+      const loeschen = (idx) => {
+        if (!window.confirm(`Lernwort "${woerter[idx].wort}" wirklich löschen?`)) return;
+        onAendern(woerter.filter((_, i) => i !== idx));
+      };
+
+      return (
+        <div className="space-y-5">
+          <div className="flex items-center justify-between">
+            <button onClick={onZurueck}
+              className="bg-white rounded-2xl px-4 py-3 shadow-md hover:shadow-lg active:scale-95 transition-all flex items-center gap-2">
+              <IconChevronLeft className="w-5 h-5"/>
+            </button>
+            <h2 className="text-2xl md:text-3xl font-extrabold text-rose-800">Lernwörter</h2>
+            <div className="w-12"/>
+          </div>
+
+          <div className="bg-white rounded-3xl p-5 shadow-md border-4 border-rose-100 space-y-3">
+            <h3 className="font-bold text-rose-800">Neues Lernwort hinzufügen</h3>
+            <p className="text-sm text-amber-700">
+              Trage das richtig geschriebene Wort und drei plausible <i>falsche</i> Schreibweisen als Ablenker ein. Die App mischt alle vier in einer Multiple-Choice-Aufgabe.
+            </p>
+            <input type="text" placeholder="Richtiges Wort (z. B. 'Schule')"
+              value={wort} onChange={(e) => setWort(e.target.value)}
+              className="w-full px-4 py-3 text-lg border-2 border-rose-300 rounded-2xl focus:outline-none focus:border-rose-500"
+              maxLength={30}/>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+              <input type="text" placeholder="Falsch 1 (z. B. 'Shule')" value={d1} onChange={(e) => setD1(e.target.value)}
+                className="px-4 py-3 border-2 border-amber-200 rounded-2xl focus:outline-none focus:border-amber-400" maxLength={30}/>
+              <input type="text" placeholder="Falsch 2 (z. B. 'Schuhle')" value={d2} onChange={(e) => setD2(e.target.value)}
+                className="px-4 py-3 border-2 border-amber-200 rounded-2xl focus:outline-none focus:border-amber-400" maxLength={30}/>
+              <input type="text" placeholder="Falsch 3 (z. B. 'Schuule')" value={d3} onChange={(e) => setD3(e.target.value)}
+                className="px-4 py-3 border-2 border-amber-200 rounded-2xl focus:outline-none focus:border-amber-400" maxLength={30}/>
+            </div>
+            <button onClick={hinzufuegen} disabled={!kannHinzufuegen}
+              className="w-full bg-gradient-to-r from-rose-400 to-rose-600 text-white rounded-2xl py-3 font-bold flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+              <IconPlus className="w-5 h-5"/> Hinzufügen
+            </button>
+          </div>
+
+          <div className="bg-white rounded-3xl p-5 shadow-md border-4 border-rose-100">
+            <h3 className="font-bold text-rose-800 mb-3">Eingetragene Lernwörter ({woerter.length})</h3>
+            {woerter.length === 0 ? (
+              <p className="text-center text-gray-500 italic py-4">Noch keine Lernwörter eingetragen.</p>
+            ) : (
+              <div className="space-y-2">
+                {woerter.map((w, i) => (
+                  <div key={i} className="flex items-center justify-between bg-rose-50 rounded-2xl p-3 border-2 border-rose-100">
+                    <div>
+                      <div className="font-bold text-rose-800 text-lg">{w.wort}</div>
+                      <div className="text-xs text-amber-600 mt-1">
+                        Ablenker: {w.distraktoren.join(" · ")}
+                      </div>
+                    </div>
+                    <button onClick={() => loeschen(i)}
+                      className="bg-rose-100 hover:bg-rose-200 text-rose-700 rounded-xl p-2 active:scale-95 transition-all">
+                      <IconTrash className="w-5 h-5"/>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    // ============================================================================
+    // PROFILE VERWALTEN
+    // ============================================================================
+    function ProfileVerwaltenScreen({ profile, aktivId, onNeu, onLoeschen, onZurueck }) {
+      const [neuName, setNeuName] = useState("");
+      const [neuEmoji, setNeuEmoji] = useState(PROFIL_EMOJIS[0]);
+
+      const anlegen = () => {
+        if (!neuName.trim()) return;
+        onNeu(neuName.trim(), neuEmoji);
+        setNeuName("");
+      };
+
+      return (
+        <div className="space-y-5">
+          <div className="flex items-center justify-between">
+            <button onClick={onZurueck}
+              className="bg-white rounded-2xl px-4 py-3 shadow-md hover:shadow-lg active:scale-95 transition-all">
+              <IconChevronLeft className="w-5 h-5"/>
+            </button>
+            <h2 className="text-2xl md:text-3xl font-extrabold text-sky-800">Profile</h2>
+            <div className="w-12"/>
+          </div>
+
+          <div className="bg-white rounded-3xl p-5 shadow-md border-4 border-sky-100">
+            <h3 className="font-bold text-sky-800 mb-3">Vorhandene Profile</h3>
+            <div className="space-y-2">
+              {profile.map((p) => (
+                <div key={p.id} className="flex items-center justify-between bg-sky-50 rounded-2xl p-3 border-2 border-sky-100">
+                  <div className="flex items-center gap-3">
+                    <span className="text-3xl">{p.emoji}</span>
+                    <span className="font-bold text-amber-900 text-lg">{p.name}</span>
+                    {p.id === aktivId && <span className="bg-amber-200 text-amber-800 text-xs font-bold rounded-full px-2 py-1">aktiv</span>}
+                  </div>
+                  {profile.length > 1 && (
+                    <button onClick={() => { if (window.confirm(`Profil "${p.name}" wirklich löschen? Alle Sterne und Lernwörter gehen verloren.`)) onLoeschen(p.id); }}
+                      className="bg-rose-100 hover:bg-rose-200 text-rose-700 rounded-xl p-2 active:scale-95 transition-all">
+                      <IconTrash className="w-5 h-5"/>
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="bg-white rounded-3xl p-5 shadow-md border-4 border-emerald-100 space-y-3">
+            <h3 className="font-bold text-emerald-800">Neues Profil anlegen</h3>
+            <input type="text" placeholder="Name" value={neuName} onChange={(e) => setNeuName(e.target.value)}
+              className="w-full px-4 py-3 text-lg border-2 border-emerald-300 rounded-2xl focus:outline-none focus:border-emerald-500"
+              maxLength={20}/>
+            <div>
+              <p className="text-sm text-emerald-700 mb-2 font-semibold">Tier wählen:</p>
+              <div className="grid grid-cols-6 gap-2">
+                {PROFIL_EMOJIS.map((e) => (
+                  <button key={e} onClick={() => { setNeuEmoji(e); soundKlick(); }}
+                    className={`text-2xl p-2 rounded-2xl transition-all ${neuEmoji === e ? "bg-emerald-300 scale-110 ring-4 ring-emerald-500" : "bg-emerald-50 hover:bg-emerald-100"}`}>
+                    {e}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <button onClick={anlegen} disabled={!neuName.trim()}
+              className="w-full bg-gradient-to-r from-emerald-400 to-emerald-600 text-white rounded-2xl py-3 font-bold flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+              <IconPlus className="w-5 h-5"/> Anlegen
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    // ============================================================================
+    // PIN-DIALOG (Setup und Eingabe)
+    // ============================================================================
+    function PinDialog({ modus, onErfolg, onAbbruch }) {
+      const [eingabe, setEingabe] = useState("");
+      const [bestaetigung, setBestaetigung] = useState("");
+      const [fehler, setFehler] = useState("");
+      const [phase, setPhase] = useState(modus === "setup" ? "neu" : "eingabe"); // neu | bestaetigen | eingabe
+
+      const druecken = (z) => {
+        setFehler("");
+        if (phase === "eingabe") {
+          if (eingabe.length < 4) {
+            const neu = eingabe + z;
+            setEingabe(neu);
+            if (neu.length === 4) {
+              setTimeout(() => {
+                const gespeichert = Storage.get(KEY_PIN);
+                if (neu === gespeichert) {
+                  onErfolg();
+                } else {
+                  setFehler("Falscher PIN. Versuch's nochmal.");
+                  setEingabe("");
+                }
+              }, 200);
+            }
+          }
+        } else if (phase === "neu") {
+          if (eingabe.length < 4) {
+            const neu = eingabe + z;
+            setEingabe(neu);
+            if (neu.length === 4) {
+              setTimeout(() => setPhase("bestaetigen"), 200);
+            }
+          }
+        } else if (phase === "bestaetigen") {
+          if (bestaetigung.length < 4) {
+            const neu = bestaetigung + z;
+            setBestaetigung(neu);
+            if (neu.length === 4) {
+              setTimeout(() => {
+                if (neu === eingabe) {
+                  Storage.set(KEY_PIN, neu);
+                  onErfolg();
+                } else {
+                  setFehler("Die beiden PINs stimmen nicht überein.");
+                  setEingabe(""); setBestaetigung(""); setPhase("neu");
+                }
+              }, 200);
+            }
+          }
+        }
+      };
+      const loeschen = () => {
+        setFehler("");
+        if (phase === "eingabe") setEingabe(eingabe.slice(0, -1));
+        else if (phase === "neu") setEingabe(eingabe.slice(0, -1));
+        else setBestaetigung(bestaetigung.slice(0, -1));
+      };
+
+      const aktiverWert = phase === "bestaetigen" ? bestaetigung : eingabe;
+      const titel = modus === "setup"
+        ? (phase === "neu" ? "Eltern-PIN festlegen" : "PIN bestätigen")
+        : "Eltern-PIN eingeben";
+      const hinweis = modus === "setup"
+        ? (phase === "neu"
+            ? "Wähle einen 4-stelligen PIN. Den brauchst du, wenn du Lernwörter pflegen oder Profile löschen willst."
+            : "Gib den PIN nochmal ein zur Sicherheit.")
+        : "Vier Ziffern eintippen.";
+
+      return (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-6 shadow-2xl max-w-sm w-full border-4 border-amber-200"
+               style={{ animation: "fadeIn 0.2s ease-out" }}>
+            <div className="text-center">
+              <div className="bg-violet-100 rounded-2xl p-3 w-fit mx-auto mb-3">
+                <IconKey className="w-8 h-8 text-violet-600"/>
+              </div>
+              <h3 className="text-xl font-bold text-amber-900">{titel}</h3>
+              <p className="text-sm text-amber-700 mt-1 px-4">{hinweis}</p>
+            </div>
+            <div className="text-4xl tracking-widest text-center mt-5 mb-2 font-mono text-amber-900">
+              {[0,1,2,3].map((i) => (
+                <span key={i} className={`inline-block mx-1 ${aktiverWert[i] ? "" : "opacity-30"}`}>
+                  {aktiverWert[i] ? "●" : "○"}
+                </span>
+              ))}
+            </div>
+            {fehler && <p className="text-rose-600 text-center text-sm mb-2 font-semibold">{fehler}</p>}
+            <div className="grid grid-cols-3 gap-2 max-w-xs mx-auto">
+              {[1,2,3,4,5,6,7,8,9].map((z) => (
+                <button key={z} onClick={() => druecken(String(z))}
+                  className="bg-amber-100 hover:bg-amber-200 active:scale-95 rounded-2xl h-14 text-2xl font-bold text-amber-900 transition-all">
+                  {z}
+                </button>
+              ))}
+              <button onClick={onAbbruch}
+                className="bg-gray-100 hover:bg-gray-200 active:scale-95 rounded-2xl h-14 text-amber-700 font-semibold transition-all">
+                Abbruch
+              </button>
+              <button onClick={() => druecken("0")}
+                className="bg-amber-100 hover:bg-amber-200 active:scale-95 rounded-2xl h-14 text-2xl font-bold text-amber-900 transition-all">
+                0
+              </button>
+              <button onClick={loeschen}
+                className="bg-rose-100 hover:bg-rose-200 active:scale-95 rounded-2xl h-14 text-rose-700 font-bold transition-all">
+                ⌫
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ============================================================================
+    // PIN ÄNDERN — Eltern-Bereich
+    // ============================================================================
+    function PinAendernScreen({ onFertig, onZurueck }) {
+      const [phase, setPhase] = useState("neu");  // neu | bestaetigen | erfolg
+      const [neu, setNeu] = useState("");
+      const [bestaetigung, setBestaetigung] = useState("");
+      const [fehler, setFehler] = useState("");
+
+      const druecken = (z) => {
+        setFehler("");
+        if (phase === "neu") {
+          if (neu.length < 4) {
+            const w = neu + z;
+            setNeu(w);
+            if (w.length === 4) setTimeout(() => setPhase("bestaetigen"), 200);
+          }
+        } else if (phase === "bestaetigen") {
+          if (bestaetigung.length < 4) {
+            const w = bestaetigung + z;
+            setBestaetigung(w);
+            if (w.length === 4) {
+              setTimeout(() => {
+                if (w === neu) {
+                  Storage.set(KEY_PIN, w);
+                  setPhase("erfolg");
+                  setTimeout(onFertig, 1200);
+                } else {
+                  setFehler("PINs stimmen nicht überein.");
+                  setNeu(""); setBestaetigung(""); setPhase("neu");
+                }
+              }, 200);
+            }
+          }
+        }
+      };
+      const loeschen = () => {
+        setFehler("");
+        if (phase === "neu") setNeu(neu.slice(0, -1));
+        else if (phase === "bestaetigen") setBestaetigung(bestaetigung.slice(0, -1));
+      };
+
+      const aktiverWert = phase === "bestaetigen" ? bestaetigung : neu;
+      return (
+        <div className="space-y-5">
+          <div className="flex items-center justify-between">
+            <button onClick={onZurueck}
+              className="bg-white rounded-2xl px-4 py-3 shadow-md hover:shadow-lg active:scale-95 transition-all">
+              <IconChevronLeft className="w-5 h-5"/>
+            </button>
+            <h2 className="text-2xl md:text-3xl font-extrabold text-violet-800">PIN ändern</h2>
+            <div className="w-12"/>
+          </div>
+          <div className="bg-white rounded-3xl p-6 shadow-md border-4 border-violet-100 max-w-md mx-auto">
+            {phase === "erfolg" ? (
+              <div className="text-center py-4">
+                <div className="bg-emerald-100 rounded-2xl p-3 w-fit mx-auto mb-3">
+                  <IconCheck className="w-10 h-10 text-emerald-600"/>
+                </div>
+                <p className="text-xl font-bold text-emerald-700">PIN aktualisiert!</p>
+              </div>
+            ) : (
+              <>
+                <p className="text-center text-amber-700 mb-4">
+                  {phase === "neu" ? "Neuen 4-stelligen PIN eintippen." : "PIN nochmal zur Sicherheit eintippen."}
+                </p>
+                <div className="text-4xl tracking-widest text-center mb-3 font-mono text-amber-900">
+                  {[0,1,2,3].map((i) => (
+                    <span key={i} className={`inline-block mx-1 ${aktiverWert[i] ? "" : "opacity-30"}`}>
+                      {aktiverWert[i] ? "●" : "○"}
+                    </span>
+                  ))}
+                </div>
+                {fehler && <p className="text-rose-600 text-center text-sm mb-2 font-semibold">{fehler}</p>}
+                <div className="grid grid-cols-3 gap-2">
+                  {[1,2,3,4,5,6,7,8,9].map((z) => (
+                    <button key={z} onClick={() => druecken(String(z))}
+                      className="bg-amber-100 hover:bg-amber-200 active:scale-95 rounded-2xl h-14 text-2xl font-bold text-amber-900 transition-all">
+                      {z}
+                    </button>
+                  ))}
+                  <div></div>
+                  <button onClick={() => druecken("0")}
+                    className="bg-amber-100 hover:bg-amber-200 active:scale-95 rounded-2xl h-14 text-2xl font-bold text-amber-900 transition-all">
+                    0
+                  </button>
+                  <button onClick={loeschen}
+                    className="bg-rose-100 hover:bg-rose-200 active:scale-95 rounded-2xl h-14 text-rose-700 font-bold transition-all">
+                    ⌫
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       );
