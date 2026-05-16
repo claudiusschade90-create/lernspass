@@ -1,0 +1,842 @@
+{
+  "fach": "mathe",
+  "quelle": "LehrplanPLUS Bayern Mathematik Jahrgangsstufe 1/2, ISB Bayern, abgerufen 2026-05-16",
+  "themenfelder": [
+    {
+      "id": "mathe_sachaufgaben",
+      "name": "Sachaufgaben",
+      "beschreibung": "Rechenaufgaben mit kleinen Geschichten zum Plus, Minus und Mal",
+      "emoji": "📖"
+    },
+    {
+      "id": "mathe_formen",
+      "name": "Raum und Form",
+      "beschreibung": "Grundformen, Symmetrie, Würfel und Quader erkennen",
+      "emoji": "🔺"
+    },
+    {
+      "id": "mathe_laengen",
+      "name": "Längen messen",
+      "beschreibung": "Mit Zentimeter und Meter umgehen",
+      "emoji": "📏"
+    },
+    {
+      "id": "mathe_gewichte",
+      "name": "Gewichte",
+      "beschreibung": "Gramm und Kilogramm schätzen und vergleichen",
+      "emoji": "⚖️"
+    },
+    {
+      "id": "mathe_muster",
+      "name": "Muster und Zahlenfolgen",
+      "beschreibung": "Zahlenfolgen fortsetzen, Verdoppeln und Halbieren",
+      "emoji": "🔢"
+    },
+    {
+      "id": "mathe_daten",
+      "name": "Daten und Zufall",
+      "beschreibung": "Strichlisten lesen und Wahrscheinlichkeit einschätzen",
+      "emoji": "📊"
+    }
+  ],
+  "fragen": {
+    "mat_sach_01": {
+      "themenfeld": "mathe_sachaufgaben",
+      "frage": "Anna hat 12 Äpfel. Sie verschenkt 5 Äpfel an Freunde. Wie viele Äpfel bleiben Anna?",
+      "optionen": ["5", "6", "7", "17"],
+      "antwort": "7",
+      "hinweis": "Verschenken heißt minus. 12 − 5 = 7"
+    },
+    "mat_sach_02": {
+      "themenfeld": "mathe_sachaufgaben",
+      "frage": "Im Bus sitzen 14 Kinder. An der nächsten Haltestelle steigen 6 Kinder ein. Wie viele Kinder sind jetzt im Bus?",
+      "optionen": ["18", "19", "20", "21"],
+      "antwort": "20",
+      "hinweis": "Einsteigen heißt plus. 14 + 6 = 20"
+    },
+    "mat_sach_03": {
+      "themenfeld": "mathe_sachaufgaben",
+      "frage": "Tim hat 3 Tüten mit je 4 Bonbons. Wie viele Bonbons hat Tim insgesamt?",
+      "optionen": ["7", "10", "12", "16"],
+      "antwort": "12",
+      "hinweis": "3 mal 4 Bonbons. 3 · 4 = 12"
+    },
+    "mat_sach_04": {
+      "themenfeld": "mathe_sachaufgaben",
+      "frage": "Lena sammelt Muscheln. Sie hat 25 Muscheln und findet noch 8 dazu. Wie viele hat sie nun?",
+      "optionen": ["31", "32", "33", "34"],
+      "antwort": "33",
+      "hinweis": "25 + 8 = 33"
+    },
+    "mat_sach_05": {
+      "themenfeld": "mathe_sachaufgaben",
+      "frage": "In der Klasse sind 24 Kinder. 9 sind Mädchen. Wie viele Jungen sind in der Klasse?",
+      "optionen": ["13", "14", "15", "16"],
+      "antwort": "15",
+      "hinweis": "24 − 9 = 15"
+    },
+    "mat_sach_06": {
+      "themenfeld": "mathe_sachaufgaben",
+      "frage": "Paul hat 5 Päckchen mit je 2 Stickern. Wie viele Sticker hat er insgesamt?",
+      "optionen": ["7", "8", "10", "12"],
+      "antwort": "10",
+      "hinweis": "5 · 2 = 10"
+    },
+    "mat_sach_07": {
+      "themenfeld": "mathe_sachaufgaben",
+      "frage": "Eine Kuh gibt am Tag 4 Eimer Milch. Wie viele Eimer Milch gibt sie in 5 Tagen?",
+      "optionen": ["9", "15", "20", "25"],
+      "antwort": "20",
+      "hinweis": "5 · 4 = 20"
+    },
+    "mat_sach_08": {
+      "themenfeld": "mathe_sachaufgaben",
+      "frage": "Maja bäckt 30 Plätzchen. Sie isst 7 davon. Wie viele bleiben übrig?",
+      "optionen": ["22", "23", "24", "27"],
+      "antwort": "23",
+      "hinweis": "30 − 7 = 23"
+    },
+    "mat_sach_09": {
+      "themenfeld": "mathe_sachaufgaben",
+      "frage": "Ein Buch kostet 8 Euro. Wie viel kosten 3 solche Bücher?",
+      "optionen": ["11 Euro", "21 Euro", "24 Euro", "28 Euro"],
+      "antwort": "24 Euro",
+      "hinweis": "3 · 8 = 24"
+    },
+    "mat_sach_10": {
+      "themenfeld": "mathe_sachaufgaben",
+      "frage": "Auf dem Spielplatz sind 17 Kinder. 5 Kinder gehen nach Hause. Wie viele Kinder bleiben?",
+      "optionen": ["10", "11", "12", "13"],
+      "antwort": "12",
+      "hinweis": "17 − 5 = 12"
+    },
+    "mat_sach_11": {
+      "themenfeld": "mathe_sachaufgaben",
+      "frage": "Oma backt 4 Bleche mit je 10 Keksen. Wie viele Kekse sind das zusammen?",
+      "optionen": ["14", "30", "40", "44"],
+      "antwort": "40",
+      "hinweis": "4 · 10 = 40"
+    },
+    "mat_sach_12": {
+      "themenfeld": "mathe_sachaufgaben",
+      "frage": "Felix hat 18 Murmeln. Er verliert 6 Murmeln im Sandkasten. Wie viele hat er noch?",
+      "optionen": ["10", "11", "12", "14"],
+      "antwort": "12",
+      "hinweis": "18 − 6 = 12"
+    },
+    "mat_sach_13": {
+      "themenfeld": "mathe_sachaufgaben",
+      "frage": "In einem Korb liegen 6 rote und 9 grüne Äpfel. Wie viele Äpfel sind das zusammen?",
+      "optionen": ["13", "14", "15", "16"],
+      "antwort": "15",
+      "hinweis": "6 + 9 = 15"
+    },
+    "mat_sach_14": {
+      "themenfeld": "mathe_sachaufgaben",
+      "frage": "Ein Eis kostet 2 Euro. Mama kauft 5 Eis für die ganze Familie. Wie viel muss sie bezahlen?",
+      "optionen": ["7 Euro", "10 Euro", "12 Euro", "15 Euro"],
+      "antwort": "10 Euro",
+      "hinweis": "5 · 2 = 10"
+    },
+    "mat_sach_15": {
+      "themenfeld": "mathe_sachaufgaben",
+      "frage": "Hanna liest jeden Tag 5 Seiten in ihrem Buch. Wie viele Seiten liest sie in einer Woche (7 Tage)?",
+      "optionen": ["25", "30", "35", "40"],
+      "antwort": "35",
+      "hinweis": "7 · 5 = 35"
+    },
+    "mat_sach_16": {
+      "themenfeld": "mathe_sachaufgaben",
+      "frage": "Im Zoo leben 8 Affen. Es kommen 7 neue Affen dazu. Wie viele Affen leben jetzt im Zoo?",
+      "optionen": ["13", "14", "15", "16"],
+      "antwort": "15",
+      "hinweis": "8 + 7 = 15"
+    },
+    "mat_sach_17": {
+      "themenfeld": "mathe_sachaufgaben",
+      "frage": "Ein Hühnerstall hat 4 Reihen mit je 5 Hühnern. Wie viele Hühner sind das?",
+      "optionen": ["9", "15", "20", "25"],
+      "antwort": "20",
+      "hinweis": "4 · 5 = 20"
+    },
+    "mat_sach_18": {
+      "themenfeld": "mathe_sachaufgaben",
+      "frage": "Jonas hat 50 Cent gespart. Er bekommt 30 Cent von Opa. Wie viel Geld hat er jetzt?",
+      "optionen": ["70 Cent", "75 Cent", "80 Cent", "85 Cent"],
+      "antwort": "80 Cent",
+      "hinweis": "50 + 30 = 80"
+    },
+    "mat_sach_19": {
+      "themenfeld": "mathe_sachaufgaben",
+      "frage": "Die Lehrerin verteilt 24 Stifte gleichmäßig an 3 Kinder. Wie viele Stifte bekommt jedes Kind?",
+      "optionen": ["6", "7", "8", "9"],
+      "antwort": "8",
+      "hinweis": "24 : 3 = 8"
+    },
+    "mat_sach_20": {
+      "themenfeld": "mathe_sachaufgaben",
+      "frage": "Klara hat 20 Bonbons und teilt sie gerecht an 4 Freundinnen. Wie viele Bonbons bekommt jede?",
+      "optionen": ["4", "5", "6", "7"],
+      "antwort": "5",
+      "hinweis": "20 : 4 = 5"
+    },
+    "mat_form_01": {
+      "themenfeld": "mathe_formen",
+      "frage": "Wie viele Ecken hat ein Dreieck?",
+      "optionen": ["2", "3", "4", "5"],
+      "antwort": "3",
+      "hinweis": "Ein Dreieck hat 3 Ecken und 3 Seiten."
+    },
+    "mat_form_02": {
+      "themenfeld": "mathe_formen",
+      "frage": "Wie viele Ecken hat ein Quadrat?",
+      "optionen": ["3", "4", "5", "6"],
+      "antwort": "4",
+      "hinweis": "Ein Quadrat hat 4 gleich lange Seiten und 4 Ecken."
+    },
+    "mat_form_03": {
+      "themenfeld": "mathe_formen",
+      "frage": "Welche Form hat keine Ecken?",
+      "optionen": ["Dreieck", "Quadrat", "Kreis", "Rechteck"],
+      "antwort": "Kreis",
+      "hinweis": "Ein Kreis ist rund und hat keine Ecken."
+    },
+    "mat_form_04": {
+      "themenfeld": "mathe_formen",
+      "frage": "Wie viele Flächen hat ein Würfel?",
+      "optionen": ["4", "5", "6", "8"],
+      "antwort": "6",
+      "hinweis": "Ein Würfel hat 6 gleich große quadratische Flächen."
+    },
+    "mat_form_05": {
+      "themenfeld": "mathe_formen",
+      "frage": "Wie viele Ecken hat ein Würfel?",
+      "optionen": ["6", "7", "8", "12"],
+      "antwort": "8",
+      "hinweis": "Ein Würfel hat 8 Ecken."
+    },
+    "mat_form_06": {
+      "themenfeld": "mathe_formen",
+      "frage": "Wie viele Kanten hat ein Würfel?",
+      "optionen": ["6", "8", "10", "12"],
+      "antwort": "12",
+      "hinweis": "Ein Würfel hat 12 Kanten."
+    },
+    "mat_form_07": {
+      "themenfeld": "mathe_formen",
+      "frage": "Welche Form hat ein normales Buch von oben gesehen?",
+      "optionen": ["Kreis", "Dreieck", "Rechteck", "Quadrat"],
+      "antwort": "Rechteck",
+      "hinweis": "Ein Buch ist meist länger als breit, also ein Rechteck."
+    },
+    "mat_form_08": {
+      "themenfeld": "mathe_formen",
+      "frage": "Welche Form hat eine Pizza?",
+      "optionen": ["Quadrat", "Kreis", "Dreieck", "Rechteck"],
+      "antwort": "Kreis",
+      "hinweis": "Eine Pizza ist rund, also kreisförmig."
+    },
+    "mat_form_09": {
+      "themenfeld": "mathe_formen",
+      "frage": "Welcher Körper hat die Form eines Schuhkartons?",
+      "optionen": ["Würfel", "Quader", "Kugel", "Zylinder"],
+      "antwort": "Quader",
+      "hinweis": "Ein Schuhkarton ist länger als breit – das ist ein Quader."
+    },
+    "mat_form_10": {
+      "themenfeld": "mathe_formen",
+      "frage": "Welche Form hat ein Spielwürfel?",
+      "optionen": ["Quader", "Kugel", "Würfel", "Pyramide"],
+      "antwort": "Würfel",
+      "hinweis": "Alle 6 Seiten sind quadratisch und gleich groß."
+    },
+    "mat_form_11": {
+      "themenfeld": "mathe_formen",
+      "frage": "Welche Symmetrieachse hat der Buchstabe A?",
+      "optionen": ["A ist nicht symmetrisch", "A hat eine senkrechte Symmetrieachse", "A hat eine waagrechte Symmetrieachse", "A hat zwei Symmetrieachsen"],
+      "antwort": "A hat eine senkrechte Symmetrieachse",
+      "hinweis": "Wenn du A in der Mitte senkrecht faltest, passen beide Hälften aufeinander."
+    },
+    "mat_form_12": {
+      "themenfeld": "mathe_formen",
+      "frage": "Welcher Buchstabe ist spiegelsymmetrisch (hat eine Symmetrieachse)?",
+      "optionen": ["F", "G", "M", "R"],
+      "antwort": "M",
+      "hinweis": "Wenn du M senkrecht in der Mitte faltest, passen die Hälften aufeinander."
+    },
+    "mat_form_13": {
+      "themenfeld": "mathe_formen",
+      "frage": "Wie viele Seiten hat ein Sechseck?",
+      "optionen": ["4", "5", "6", "7"],
+      "antwort": "6",
+      "hinweis": "Sechs-Eck heißt: 6 Seiten und 6 Ecken."
+    },
+    "mat_form_14": {
+      "themenfeld": "mathe_formen",
+      "frage": "Welche Form hat das Rad eines Autos von der Seite gesehen?",
+      "optionen": ["Quadrat", "Kreis", "Dreieck", "Rechteck"],
+      "antwort": "Kreis",
+      "hinweis": "Räder sind rund, damit sie rollen können."
+    },
+    "mat_form_15": {
+      "themenfeld": "mathe_formen",
+      "frage": "Welche Form hat das Verkehrsschild 'Vorfahrt gewähren'?",
+      "optionen": ["Kreis", "Quadrat", "Dreieck", "Sechseck"],
+      "antwort": "Dreieck",
+      "hinweis": "Das Schild zeigt mit der Spitze nach unten – es ist ein Dreieck."
+    },
+    "mat_form_16": {
+      "themenfeld": "mathe_formen",
+      "frage": "Wie nennt man eine Form mit 4 Seiten, bei der alle Seiten gleich lang sind?",
+      "optionen": ["Rechteck", "Dreieck", "Quadrat", "Kreis"],
+      "antwort": "Quadrat",
+      "hinweis": "Beim Quadrat sind alle 4 Seiten gleich lang."
+    },
+    "mat_form_17": {
+      "themenfeld": "mathe_formen",
+      "frage": "Welche Form hat eine Tür meistens?",
+      "optionen": ["Quadrat", "Rechteck", "Dreieck", "Kreis"],
+      "antwort": "Rechteck",
+      "hinweis": "Eine Tür ist höher als breit – das ist ein Rechteck."
+    },
+    "mat_form_18": {
+      "themenfeld": "mathe_formen",
+      "frage": "Welcher Körper hat die Form eines Balls?",
+      "optionen": ["Würfel", "Kugel", "Quader", "Zylinder"],
+      "antwort": "Kugel",
+      "hinweis": "Ein Ball ist eine Kugel – rund von allen Seiten."
+    },
+    "mat_form_19": {
+      "themenfeld": "mathe_formen",
+      "frage": "Welche Form hat eine Konservendose?",
+      "optionen": ["Würfel", "Kugel", "Zylinder", "Quader"],
+      "antwort": "Zylinder",
+      "hinweis": "Eine Dose hat zwei runde Flächen oben und unten – das ist ein Zylinder."
+    },
+    "mat_form_20": {
+      "themenfeld": "mathe_formen",
+      "frage": "Wie viele Symmetrieachsen hat ein Quadrat?",
+      "optionen": ["1", "2", "3", "4"],
+      "antwort": "4",
+      "hinweis": "Ein Quadrat kann waagrecht, senkrecht und zweimal diagonal gefaltet werden."
+    },
+    "mat_laenge_01": {
+      "themenfeld": "mathe_laengen",
+      "frage": "Wie viele Zentimeter (cm) sind 1 Meter?",
+      "optionen": ["10 cm", "50 cm", "100 cm", "1000 cm"],
+      "antwort": "100 cm",
+      "hinweis": "1 m = 100 cm. Merk dir das gut!"
+    },
+    "mat_laenge_02": {
+      "themenfeld": "mathe_laengen",
+      "frage": "Was ist länger: 50 cm oder 1 m?",
+      "optionen": ["50 cm", "1 m", "Beide gleich lang", "Kann man nicht sagen"],
+      "antwort": "1 m",
+      "hinweis": "1 m = 100 cm und 100 cm sind mehr als 50 cm."
+    },
+    "mat_laenge_03": {
+      "themenfeld": "mathe_laengen",
+      "frage": "Wie lang ist ungefähr ein Schulheft (DIN A5)?",
+      "optionen": ["5 cm", "20 cm", "50 cm", "1 m"],
+      "antwort": "20 cm",
+      "hinweis": "Ein Schulheft ist ungefähr 20 cm hoch."
+    },
+    "mat_laenge_04": {
+      "themenfeld": "mathe_laengen",
+      "frage": "Wie groß ist ungefähr ein Kind in der 2. Klasse?",
+      "optionen": ["50 cm", "1 m", "1 m 25 cm", "2 m"],
+      "antwort": "1 m 25 cm",
+      "hinweis": "Kinder in der 2. Klasse sind meist zwischen 1,20 m und 1,30 m groß."
+    },
+    "mat_laenge_05": {
+      "themenfeld": "mathe_laengen",
+      "frage": "Welche Länge ist am kürzesten?",
+      "optionen": ["1 m", "50 cm", "1 cm", "10 cm"],
+      "antwort": "1 cm",
+      "hinweis": "1 cm ist ungefähr so breit wie ein Fingernagel – ganz kurz."
+    },
+    "mat_laenge_06": {
+      "themenfeld": "mathe_laengen",
+      "frage": "Wie viele cm sind 2 m?",
+      "optionen": ["20 cm", "100 cm", "200 cm", "2000 cm"],
+      "antwort": "200 cm",
+      "hinweis": "1 m = 100 cm, also sind 2 m = 200 cm."
+    },
+    "mat_laenge_07": {
+      "themenfeld": "mathe_laengen",
+      "frage": "Womit misst man am besten die Länge eines Bleistifts?",
+      "optionen": ["Zollstock", "Lineal", "Maßband fürs Zimmer", "Schritte"],
+      "antwort": "Lineal",
+      "hinweis": "Ein Bleistift ist kurz – ein Lineal passt am besten."
+    },
+    "mat_laenge_08": {
+      "themenfeld": "mathe_laengen",
+      "frage": "Ein Tisch ist 80 cm hoch. Ein Stuhl ist 45 cm hoch. Wie groß ist der Unterschied?",
+      "optionen": ["25 cm", "30 cm", "35 cm", "40 cm"],
+      "antwort": "35 cm",
+      "hinweis": "80 − 45 = 35"
+    },
+    "mat_laenge_09": {
+      "themenfeld": "mathe_laengen",
+      "frage": "Wie breit ist ungefähr ein Daumen-Nagel?",
+      "optionen": ["1 cm", "10 cm", "1 m", "5 cm"],
+      "antwort": "1 cm",
+      "hinweis": "Ein Fingernagel ist ungefähr 1 cm breit."
+    },
+    "mat_laenge_10": {
+      "themenfeld": "mathe_laengen",
+      "frage": "Welche Länge passt zu einem Fußballfeld?",
+      "optionen": ["10 cm", "10 m", "100 m", "1 cm"],
+      "antwort": "100 m",
+      "hinweis": "Ein großes Fußballfeld ist ungefähr 100 m lang."
+    },
+    "mat_laenge_11": {
+      "themenfeld": "mathe_laengen",
+      "frage": "Anna ist 1 m 20 cm groß. Wie viele cm sind das?",
+      "optionen": ["100 cm", "120 cm", "200 cm", "12 cm"],
+      "antwort": "120 cm",
+      "hinweis": "1 m = 100 cm, plus 20 cm sind zusammen 120 cm."
+    },
+    "mat_laenge_12": {
+      "themenfeld": "mathe_laengen",
+      "frage": "Welche Länge ist gleich lang wie 1 m?",
+      "optionen": ["10 cm", "50 cm", "99 cm", "100 cm"],
+      "antwort": "100 cm",
+      "hinweis": "1 m = 100 cm. Das ist immer gleich."
+    },
+    "mat_laenge_13": {
+      "themenfeld": "mathe_laengen",
+      "frage": "Lara hat ein Band von 60 cm. Sie schneidet 25 cm ab. Wie viel bleibt übrig?",
+      "optionen": ["25 cm", "35 cm", "45 cm", "55 cm"],
+      "antwort": "35 cm",
+      "hinweis": "60 − 25 = 35"
+    },
+    "mat_laenge_14": {
+      "themenfeld": "mathe_laengen",
+      "frage": "Was ist länger: 1 m 50 cm oder 140 cm?",
+      "optionen": ["1 m 50 cm", "140 cm", "Beide gleich lang", "Kann man nicht sagen"],
+      "antwort": "1 m 50 cm",
+      "hinweis": "1 m 50 cm = 150 cm, und 150 ist mehr als 140."
+    },
+    "mat_laenge_15": {
+      "themenfeld": "mathe_laengen",
+      "frage": "Wie hoch ist ungefähr eine Zimmertür?",
+      "optionen": ["1 m", "2 m", "5 m", "10 m"],
+      "antwort": "2 m",
+      "hinweis": "Eine normale Tür ist ungefähr 2 m hoch."
+    },
+    "mat_laenge_16": {
+      "themenfeld": "mathe_laengen",
+      "frage": "Tom geht 30 cm und dann noch 70 cm weiter. Wie weit ist er gegangen?",
+      "optionen": ["80 cm", "90 cm", "100 cm", "110 cm"],
+      "antwort": "100 cm",
+      "hinweis": "30 + 70 = 100 cm = 1 m"
+    },
+    "mat_laenge_17": {
+      "themenfeld": "mathe_laengen",
+      "frage": "Wie lang ist ungefähr ein neuer Bleistift?",
+      "optionen": ["2 cm", "17 cm", "1 m", "50 cm"],
+      "antwort": "17 cm",
+      "hinweis": "Ein neuer Bleistift ist ungefähr 17 cm lang."
+    },
+    "mat_laenge_18": {
+      "themenfeld": "mathe_laengen",
+      "frage": "Wie viele cm sind 1 m und 5 cm?",
+      "optionen": ["15 cm", "55 cm", "105 cm", "150 cm"],
+      "antwort": "105 cm",
+      "hinweis": "100 cm + 5 cm = 105 cm"
+    },
+    "mat_gewicht_01": {
+      "themenfeld": "mathe_gewichte",
+      "frage": "Wie viele Gramm sind 1 Kilogramm?",
+      "optionen": ["10 g", "100 g", "1000 g", "10000 g"],
+      "antwort": "1000 g",
+      "hinweis": "1 kg = 1000 g. Merk dir das gut!"
+    },
+    "mat_gewicht_02": {
+      "themenfeld": "mathe_gewichte",
+      "frage": "Was ist schwerer: 1 kg Federn oder 1 kg Eisen?",
+      "optionen": ["1 kg Federn", "1 kg Eisen", "Beide gleich schwer", "Kann man nicht sagen"],
+      "antwort": "Beide gleich schwer",
+      "hinweis": "1 Kilogramm ist immer 1 Kilogramm – egal was es ist."
+    },
+    "mat_gewicht_03": {
+      "themenfeld": "mathe_gewichte",
+      "frage": "Wie schwer ist ungefähr ein Apfel?",
+      "optionen": ["20 g", "200 g", "2 kg", "20 kg"],
+      "antwort": "200 g",
+      "hinweis": "Ein normaler Apfel wiegt ungefähr 200 Gramm."
+    },
+    "mat_gewicht_04": {
+      "themenfeld": "mathe_gewichte",
+      "frage": "Wie schwer ist ungefähr ein Kind in der 2. Klasse?",
+      "optionen": ["2 kg", "25 kg", "100 kg", "250 g"],
+      "antwort": "25 kg",
+      "hinweis": "Kinder in der 2. Klasse wiegen meist um die 25 kg."
+    },
+    "mat_gewicht_05": {
+      "themenfeld": "mathe_gewichte",
+      "frage": "Was wiegt am wenigsten?",
+      "optionen": ["1 kg Mehl", "100 g Schokolade", "500 g Butter", "2 kg Kartoffeln"],
+      "antwort": "100 g Schokolade",
+      "hinweis": "100 g ist weniger als 500 g, 1 kg (1000 g) und 2 kg (2000 g)."
+    },
+    "mat_gewicht_06": {
+      "themenfeld": "mathe_gewichte",
+      "frage": "Wie viele Gramm sind 2 kg?",
+      "optionen": ["20 g", "200 g", "2000 g", "20000 g"],
+      "antwort": "2000 g",
+      "hinweis": "1 kg = 1000 g, also sind 2 kg = 2000 g."
+    },
+    "mat_gewicht_07": {
+      "themenfeld": "mathe_gewichte",
+      "frage": "Womit wiegst du am besten ein Mehlpaket?",
+      "optionen": ["Lineal", "Küchenwaage", "Personenwaage", "Maßband"],
+      "antwort": "Küchenwaage",
+      "hinweis": "Eine Küchenwaage zeigt Gramm genau an."
+    },
+    "mat_gewicht_08": {
+      "themenfeld": "mathe_gewichte",
+      "frage": "Was wiegt ungefähr 1 Kilogramm?",
+      "optionen": ["1 Tafel Schokolade", "1 Päckchen Zucker", "1 Bonbon", "1 Briefumschlag"],
+      "antwort": "1 Päckchen Zucker",
+      "hinweis": "Ein normales Päckchen Zucker wiegt 1 kg."
+    },
+    "mat_gewicht_09": {
+      "themenfeld": "mathe_gewichte",
+      "frage": "Mama kauft 500 g Käse und 250 g Wurst. Wie viel ist das zusammen?",
+      "optionen": ["650 g", "750 g", "850 g", "950 g"],
+      "antwort": "750 g",
+      "hinweis": "500 + 250 = 750"
+    },
+    "mat_gewicht_10": {
+      "themenfeld": "mathe_gewichte",
+      "frage": "Was ist schwerer: 500 g oder 1 kg?",
+      "optionen": ["500 g", "1 kg", "Beide gleich schwer", "Weiß man nicht"],
+      "antwort": "1 kg",
+      "hinweis": "1 kg = 1000 g und 1000 g ist mehr als 500 g."
+    },
+    "mat_gewicht_11": {
+      "themenfeld": "mathe_gewichte",
+      "frage": "Wie schwer ist ungefähr ein Brief?",
+      "optionen": ["20 g", "200 g", "2 kg", "20 kg"],
+      "antwort": "20 g",
+      "hinweis": "Ein normaler Brief wiegt nur etwa 20 Gramm."
+    },
+    "mat_gewicht_12": {
+      "themenfeld": "mathe_gewichte",
+      "frage": "Wie viel wiegt ungefähr ein Tetrapack Milch (1 Liter)?",
+      "optionen": ["100 g", "500 g", "1 kg", "5 kg"],
+      "antwort": "1 kg",
+      "hinweis": "Ein Liter Milch wiegt ungefähr 1 kg."
+    },
+    "mat_gewicht_13": {
+      "themenfeld": "mathe_gewichte",
+      "frage": "Lisa hat 800 g Erdbeeren gepflückt. Sie isst 300 g auf. Wie viel bleibt?",
+      "optionen": ["400 g", "500 g", "600 g", "700 g"],
+      "antwort": "500 g",
+      "hinweis": "800 − 300 = 500"
+    },
+    "mat_gewicht_14": {
+      "themenfeld": "mathe_gewichte",
+      "frage": "Welches Tier ist am schwersten?",
+      "optionen": ["Maus (20 g)", "Katze (4 kg)", "Hund (15 kg)", "Pferd (500 kg)"],
+      "antwort": "Pferd (500 kg)",
+      "hinweis": "500 kg ist die größte Zahl – das Pferd ist am schwersten."
+    },
+    "mat_gewicht_15": {
+      "themenfeld": "mathe_gewichte",
+      "frage": "Wie viele Gramm sind ein halbes Kilogramm?",
+      "optionen": ["50 g", "100 g", "500 g", "5000 g"],
+      "antwort": "500 g",
+      "hinweis": "Die Hälfte von 1000 g sind 500 g."
+    },
+    "mat_gewicht_16": {
+      "themenfeld": "mathe_gewichte",
+      "frage": "Ein Sack Kartoffeln wiegt 5 kg. Wie viele Gramm sind das?",
+      "optionen": ["50 g", "500 g", "5000 g", "50000 g"],
+      "antwort": "5000 g",
+      "hinweis": "5 · 1000 = 5000"
+    },
+    "mat_muster_01": {
+      "themenfeld": "mathe_muster",
+      "frage": "Wie geht die Reihe weiter? 2, 4, 6, 8, __",
+      "optionen": ["9", "10", "11", "12"],
+      "antwort": "10",
+      "hinweis": "Immer +2 dazu. 8 + 2 = 10"
+    },
+    "mat_muster_02": {
+      "themenfeld": "mathe_muster",
+      "frage": "Wie geht die Reihe weiter? 5, 10, 15, 20, __",
+      "optionen": ["21", "23", "25", "30"],
+      "antwort": "25",
+      "hinweis": "Immer +5 dazu. 20 + 5 = 25"
+    },
+    "mat_muster_03": {
+      "themenfeld": "mathe_muster",
+      "frage": "Was ist das Doppelte von 7?",
+      "optionen": ["12", "13", "14", "15"],
+      "antwort": "14",
+      "hinweis": "Doppelt heißt mal 2. 7 · 2 = 14"
+    },
+    "mat_muster_04": {
+      "themenfeld": "mathe_muster",
+      "frage": "Was ist die Hälfte von 16?",
+      "optionen": ["6", "7", "8", "9"],
+      "antwort": "8",
+      "hinweis": "Hälfte heißt durch 2. 16 : 2 = 8"
+    },
+    "mat_muster_05": {
+      "themenfeld": "mathe_muster",
+      "frage": "Wie geht die Reihe weiter? 10, 20, 30, 40, __",
+      "optionen": ["41", "45", "50", "60"],
+      "antwort": "50",
+      "hinweis": "Immer +10 dazu. 40 + 10 = 50"
+    },
+    "mat_muster_06": {
+      "themenfeld": "mathe_muster",
+      "frage": "Was ist das Doppelte von 12?",
+      "optionen": ["14", "20", "22", "24"],
+      "antwort": "24",
+      "hinweis": "12 + 12 = 24"
+    },
+    "mat_muster_07": {
+      "themenfeld": "mathe_muster",
+      "frage": "Was ist die Hälfte von 20?",
+      "optionen": ["5", "8", "10", "15"],
+      "antwort": "10",
+      "hinweis": "20 : 2 = 10"
+    },
+    "mat_muster_08": {
+      "themenfeld": "mathe_muster",
+      "frage": "Wie geht die Reihe weiter? 1, 3, 5, 7, __",
+      "optionen": ["8", "9", "10", "11"],
+      "antwort": "9",
+      "hinweis": "Das sind ungerade Zahlen, immer +2. 7 + 2 = 9"
+    },
+    "mat_muster_09": {
+      "themenfeld": "mathe_muster",
+      "frage": "Wie geht die Reihe rückwärts weiter? 20, 18, 16, 14, __",
+      "optionen": ["10", "11", "12", "13"],
+      "antwort": "12",
+      "hinweis": "Immer −2 weniger. 14 − 2 = 12"
+    },
+    "mat_muster_10": {
+      "themenfeld": "mathe_muster",
+      "frage": "Was ist das Doppelte von 25?",
+      "optionen": ["30", "40", "45", "50"],
+      "antwort": "50",
+      "hinweis": "25 + 25 = 50"
+    },
+    "mat_muster_11": {
+      "themenfeld": "mathe_muster",
+      "frage": "Wie geht die Reihe weiter? 3, 6, 9, 12, __",
+      "optionen": ["13", "14", "15", "18"],
+      "antwort": "15",
+      "hinweis": "Das ist die 3er-Reihe, immer +3. 12 + 3 = 15"
+    },
+    "mat_muster_12": {
+      "themenfeld": "mathe_muster",
+      "frage": "Was fehlt? 4, 8, __, 16, 20",
+      "optionen": ["10", "11", "12", "14"],
+      "antwort": "12",
+      "hinweis": "Das ist die 4er-Reihe. Zwischen 8 und 16 liegt 12."
+    },
+    "mat_muster_13": {
+      "themenfeld": "mathe_muster",
+      "frage": "Was ist die Hälfte von 50?",
+      "optionen": ["10", "20", "25", "30"],
+      "antwort": "25",
+      "hinweis": "50 : 2 = 25"
+    },
+    "mat_muster_14": {
+      "themenfeld": "mathe_muster",
+      "frage": "Wie geht die Reihe weiter? 100, 90, 80, 70, __",
+      "optionen": ["50", "55", "60", "65"],
+      "antwort": "60",
+      "hinweis": "Immer −10 weniger. 70 − 10 = 60"
+    },
+    "mat_muster_15": {
+      "themenfeld": "mathe_muster",
+      "frage": "Was ist das Doppelte von 9?",
+      "optionen": ["16", "17", "18", "19"],
+      "antwort": "18",
+      "hinweis": "9 + 9 = 18"
+    },
+    "mat_muster_16": {
+      "themenfeld": "mathe_muster",
+      "frage": "Welche Farbe passt? Rot, Blau, Rot, Blau, __",
+      "optionen": ["Gelb", "Rot", "Grün", "Schwarz"],
+      "antwort": "Rot",
+      "hinweis": "Immer abwechselnd Rot und Blau. Nach Blau kommt wieder Rot."
+    },
+    "mat_muster_17": {
+      "themenfeld": "mathe_muster",
+      "frage": "Was ist die Hälfte von 40?",
+      "optionen": ["15", "20", "25", "30"],
+      "antwort": "20",
+      "hinweis": "40 : 2 = 20"
+    },
+    "mat_muster_18": {
+      "themenfeld": "mathe_muster",
+      "frage": "Wie geht die Reihe weiter? 7, 14, 21, 28, __",
+      "optionen": ["30", "33", "35", "36"],
+      "antwort": "35",
+      "hinweis": "Immer +7 dazu. 28 + 7 = 35"
+    },
+    "mat_muster_19": {
+      "themenfeld": "mathe_muster",
+      "frage": "Welche Form passt? Kreis, Dreieck, Kreis, Dreieck, __",
+      "optionen": ["Quadrat", "Kreis", "Rechteck", "Stern"],
+      "antwort": "Kreis",
+      "hinweis": "Es wechselt immer ab. Nach Dreieck kommt wieder Kreis."
+    },
+    "mat_muster_20": {
+      "themenfeld": "mathe_muster",
+      "frage": "Was ist das Doppelte von 30?",
+      "optionen": ["40", "50", "60", "70"],
+      "antwort": "60",
+      "hinweis": "30 + 30 = 60"
+    },
+    "mat_daten_01": {
+      "themenfeld": "mathe_daten",
+      "frage": "Eine Strichliste zeigt für Blau: ein Fünferbündel und 2 einzelne Striche. Wie viele Kinder haben Blau gewählt?",
+      "optionen": ["5", "6", "7", "8"],
+      "antwort": "7",
+      "hinweis": "Ein Fünferbündel = 5, plus 2 einzelne = 5 + 2 = 7."
+    },
+    "mat_daten_02": {
+      "themenfeld": "mathe_daten",
+      "frage": "Wie zählt man die Zahl 5 in einer Strichliste?",
+      "optionen": ["3 Striche", "4 Striche und 1 quer durch", "5 einzelne Striche", "Nur eine 5"],
+      "antwort": "4 Striche und 1 quer durch",
+      "hinweis": "Bei einer Strichliste macht man 4 senkrechte Striche und den fünften quer durch."
+    },
+    "mat_daten_03": {
+      "themenfeld": "mathe_daten",
+      "frage": "Ist es sicher, dass morgen die Sonne aufgeht?",
+      "optionen": ["Ja, sicher", "Möglich, aber nicht sicher", "Unmöglich", "Weiß man nicht"],
+      "antwort": "Ja, sicher",
+      "hinweis": "Die Sonne geht jeden Tag auf – das ist sicher."
+    },
+    "mat_daten_04": {
+      "themenfeld": "mathe_daten",
+      "frage": "Wie wahrscheinlich ist es, dass ein Hund Mathe-Hausaufgaben macht?",
+      "optionen": ["Sicher", "Möglich", "Unmöglich", "Manchmal"],
+      "antwort": "Unmöglich",
+      "hinweis": "Hunde können keine Mathe-Hausaufgaben machen – das ist unmöglich."
+    },
+    "mat_daten_05": {
+      "themenfeld": "mathe_daten",
+      "frage": "Wie wahrscheinlich ist es, dass es morgen regnet?",
+      "optionen": ["Sicher", "Möglich", "Unmöglich", "Nie"],
+      "antwort": "Möglich",
+      "hinweis": "Regen kann kommen, muss aber nicht – also möglich."
+    },
+    "mat_daten_06": {
+      "themenfeld": "mathe_daten",
+      "frage": "In einer Klasse mögen 8 Kinder Pizza, 5 mögen Spaghetti und 3 mögen Pommes. Wie viele Kinder sind das insgesamt?",
+      "optionen": ["13", "14", "15", "16"],
+      "antwort": "16",
+      "hinweis": "8 + 5 + 3 = 16"
+    },
+    "mat_daten_07": {
+      "themenfeld": "mathe_daten",
+      "frage": "Du würfelst mit einem normalen Würfel. Welche Zahl kann NICHT kommen?",
+      "optionen": ["3", "5", "6", "7"],
+      "antwort": "7",
+      "hinweis": "Ein normaler Würfel hat nur die Zahlen 1 bis 6."
+    },
+    "mat_daten_08": {
+      "themenfeld": "mathe_daten",
+      "frage": "Was ist sicher: Wenn ich ins Wasser springe, werde ich…",
+      "optionen": ["nass", "trocken", "fliegen", "unsichtbar"],
+      "antwort": "nass",
+      "hinweis": "Wasser macht immer nass – das ist sicher."
+    },
+    "mat_daten_09": {
+      "themenfeld": "mathe_daten",
+      "frage": "In einer Klasse sind 20 Kinder. 12 mögen Schokoeis, der Rest Vanille. Wie viele mögen Vanille?",
+      "optionen": ["6", "7", "8", "9"],
+      "antwort": "8",
+      "hinweis": "20 − 12 = 8"
+    },
+    "mat_daten_10": {
+      "themenfeld": "mathe_daten",
+      "frage": "Ein Würfel zeigt die Zahlen 1 bis 6. Wie viele verschiedene Zahlen gibt es?",
+      "optionen": ["4", "5", "6", "7"],
+      "antwort": "6",
+      "hinweis": "Die Zahlen 1, 2, 3, 4, 5, 6 sind 6 verschiedene Zahlen."
+    },
+    "mat_daten_11": {
+      "themenfeld": "mathe_daten",
+      "frage": "Wie wahrscheinlich ist es, dass du beim Würfeln eine 8 würfelst?",
+      "optionen": ["Sicher", "Möglich", "Unmöglich", "Sehr wahrscheinlich"],
+      "antwort": "Unmöglich",
+      "hinweis": "Ein Würfel hat nur die Zahlen 1 bis 6 – eine 8 ist unmöglich."
+    },
+    "mat_daten_12": {
+      "themenfeld": "mathe_daten",
+      "frage": "In der Strichliste stehen für Hund: ein Fünferbündel und 3 einzelne Striche. Wie viele Kinder mögen Hunde?",
+      "optionen": ["6", "7", "8", "9"],
+      "antwort": "8",
+      "hinweis": "Ein Fünferbündel = 5, plus 3 einzelne = 5 + 3 = 8."
+    },
+    "mat_daten_13": {
+      "themenfeld": "mathe_daten",
+      "frage": "Was ist möglich, aber nicht sicher?",
+      "optionen": ["Dass es morgen schneit im Sommer", "Dass die Sonne aufgeht", "Dass es morgen regnet", "Dass 2 + 2 = 4 ist"],
+      "antwort": "Dass es morgen regnet",
+      "hinweis": "Regen kann kommen oder nicht – das ist möglich, aber nicht sicher."
+    },
+    "mat_daten_14": {
+      "themenfeld": "mathe_daten",
+      "frage": "5 Kinder haben Blau gewählt, 8 Kinder Rot. Welche Farbe haben mehr Kinder gewählt?",
+      "optionen": ["Blau", "Rot", "Gleich viele", "Keine"],
+      "antwort": "Rot",
+      "hinweis": "8 ist mehr als 5 – Rot wurde häufiger gewählt."
+    },
+    "mat_daten_15": {
+      "themenfeld": "mathe_daten",
+      "frage": "Wie zeichnet man die Zahl 10 in einer Strichliste?",
+      "optionen": ["Zwei Fünferbündel", "10 einzelne Striche", "1 dicker Strich", "Eine 10"],
+      "antwort": "Zwei Fünferbündel",
+      "hinweis": "Für 10 macht man zwei Bündel zu je 5 Strichen."
+    },
+    "mat_daten_16": {
+      "themenfeld": "mathe_daten",
+      "frage": "Was ist sicher?",
+      "optionen": ["Im Winter wird es kälter als im Sommer", "Morgen schneit es bestimmt", "Ich finde 100 Euro", "Mein Lehrer fliegt heute"],
+      "antwort": "Im Winter wird es kälter als im Sommer",
+      "hinweis": "Der Winter ist immer kälter als der Sommer – das ist sicher."
+    },
+    "mat_daten_17": {
+      "themenfeld": "mathe_daten",
+      "frage": "Lisa hat eine Strichliste für Lieblings-Tiere. Hund: 6, Katze: 9, Pferd: 4. Welches Tier ist am beliebtesten?",
+      "optionen": ["Hund", "Katze", "Pferd", "Alle gleich"],
+      "antwort": "Katze",
+      "hinweis": "9 ist die größte Zahl – die Katze ist am beliebtesten."
+    },
+    "mat_daten_18": {
+      "themenfeld": "mathe_daten",
+      "frage": "Wie wahrscheinlich ist es, dass aus einem Apfelbaum Birnen wachsen?",
+      "optionen": ["Sicher", "Möglich", "Unmöglich", "Manchmal"],
+      "antwort": "Unmöglich",
+      "hinweis": "An einem Apfelbaum wachsen nur Äpfel – Birnen sind unmöglich."
+    },
+    "mat_daten_19": {
+      "themenfeld": "mathe_daten",
+      "frage": "In einer Klasse sind 25 Kinder. 13 sind Jungen, der Rest Mädchen. Wie viele Mädchen sind das?",
+      "optionen": ["10", "11", "12", "13"],
+      "antwort": "12",
+      "hinweis": "25 − 13 = 12"
+    },
+    "mat_daten_20": {
+      "themenfeld": "mathe_daten",
+      "frage": "Welches Ereignis ist sicher?",
+      "optionen": ["Heute Nacht wird es dunkel", "Es schneit im August", "Ich gewinne im Lotto", "Mein Apfel spricht"],
+      "antwort": "Heute Nacht wird es dunkel",
+      "hinweis": "Es wird jede Nacht dunkel – das ist sicher."
+    }
+  }
+}

@@ -367,31 +367,42 @@
       return s ? s.box : 1;
     }
 
-    function gewichtetWaehlen(ids, fragenStatus) {
+    function gewichtetWaehlen(ids, fragenStatus, ausschluss = []) {
       if (ids.length === 0) return null;
-      const gewichte = ids.map((id) => BOX_GEWICHT[frageBox(id, fragenStatus)] || 1);
+      const ausSet = new Set(ausschluss);
+      // Maximal so viele ausschliessen, dass mindestens 1 Frage uebrig bleibt
+      let verfuegbar = ids.filter((id) => !ausSet.has(id));
+      if (verfuegbar.length === 0) verfuegbar = ids;
+      const gewichte = verfuegbar.map((id) => BOX_GEWICHT[frageBox(id, fragenStatus)] || 1);
       const sum = gewichte.reduce((a, b) => a + b, 0);
       let r = Math.random() * sum;
-      for (let i = 0; i < ids.length; i++) {
+      for (let i = 0; i < verfuegbar.length; i++) {
         r -= gewichte[i];
-        if (r <= 0) return ids[i];
+        if (r <= 0) return verfuegbar[i];
       }
-      return ids[ids.length - 1];
+      return verfuegbar[verfuegbar.length - 1];
     }
 
-    function naechsteStatischeFrage(themenfeldId, fragenStatus) {
+    function naechsteStatischeFrage(themenfeldId, fragenStatus, ausschluss = []) {
       const ids = FRAGEN_NACH_THEMENFELD[themenfeldId] || [];
-      const id = gewichtetWaehlen(ids, fragenStatus);
+      const id = gewichtetWaehlen(ids, fragenStatus, ausschluss);
       return id ? { id, ...FRAGEN_KATALOG[id] } : null;
     }
 
-    // Mathe-Generator-Strategie: ziehe ein paar Kandidaten und wähle gewichtet die "am schwersten sitzende"
-    function naechsteGeneratorFrage(themenfeldId, fragenStatus) {
+    // Mathe-Generator: erzeuge mehrere Kandidaten, schliesse zuletzt gestellte aus,
+    // dann gewichtet nach Box auswaehlen
+    function naechsteGeneratorFrage(themenfeldId, fragenStatus, ausschluss = []) {
       const gen = MATHE_GENERATOREN[themenfeldId];
       if (!gen) return null;
-      const kandidaten = Array.from({ length: 8 }, () => gen());
-      const ids = kandidaten.map((k) => k.id);
-      const gewichte = ids.map((id) => BOX_GEWICHT[frageBox(id, fragenStatus)] || 1);
+      const ausSet = new Set(ausschluss);
+      // Bis zu 24 Kandidaten generieren, um auch nach Ausschluss genug zu haben
+      const kandidaten = [];
+      for (let i = 0; i < 24 && kandidaten.length < 8; i++) {
+        const k = gen();
+        if (!ausSet.has(k.id)) kandidaten.push(k);
+      }
+      if (kandidaten.length === 0) kandidaten.push(gen());
+      const gewichte = kandidaten.map((k) => BOX_GEWICHT[frageBox(k.id, fragenStatus)] || 1);
       const sum = gewichte.reduce((a, b) => a + b, 0);
       let r = Math.random() * sum;
       for (let i = 0; i < kandidaten.length; i++) {
@@ -401,12 +412,12 @@
       return kandidaten[kandidaten.length - 1];
     }
 
-    function naechsteFrage(themenfeldId, fragenStatus, lernwoerter) {
+    function naechsteFrage(themenfeldId, fragenStatus, lernwoerter, ausschluss = []) {
       if (themenfeldId === "deu_lernwoerter") {
         if (!lernwoerter || lernwoerter.length === 0) return null;
-        // Lernwörter haben pro Wort eine stabile ID
         const ids = lernwoerter.map((w, i) => `lw_${w.wort}_${i}`);
-        const idx = ids.indexOf(gewichtetWaehlen(ids, fragenStatus) || ids[0]);
+        const gewaehlteId = gewichtetWaehlen(ids, fragenStatus, ausschluss) || ids[0];
+        const idx = ids.indexOf(gewaehlteId);
         const eintrag = lernwoerter[idx];
         const distraktoren = (eintrag.distraktoren || []).filter((d) => d && d !== eintrag.wort);
         return {
@@ -418,8 +429,8 @@
           hinweis: "Lernwort aus deinem Schulheft.",
         };
       }
-      if (MATHE_GENERATOREN[themenfeldId]) return naechsteGeneratorFrage(themenfeldId, fragenStatus);
-      return naechsteStatischeFrage(themenfeldId, fragenStatus);
+      if (MATHE_GENERATOREN[themenfeldId]) return naechsteGeneratorFrage(themenfeldId, fragenStatus, ausschluss);
+      return naechsteStatischeFrage(themenfeldId, fragenStatus, ausschluss);
     }
 
     function verarbeiteAntwort(frageId, istRichtig, fragenStatus) {
@@ -1218,7 +1229,12 @@
     // ============================================================================
     function QuizScreen({ themenfeldId, fragenStatus, lernwoerter, onZurueck, onAntwort }) {
       const themenfeld = THEMENFELDER.find((t) => t.id === themenfeldId);
-      const [aufgabe, setAufgabe] = useState(() => naechsteFrage(themenfeldId, fragenStatus, lernwoerter));
+      const [aufgabe, setAufgabe] = useState(() => naechsteFrage(themenfeldId, fragenStatus, lernwoerter, []));
+      const [letzteIds, setLetzteIds] = useState(() => {
+        const erste = naechsteFrage(themenfeldId, fragenStatus, lernwoerter, []);
+        return erste ? [erste.id] : [];
+      });
+      // Bei wiederholtem Mounten (themenfeld-Wechsel): aufgabe und letzteIds sind ueber useState-init schon konsistent
       const [gewaehlt, setGewaehlt] = useState(null);
       const [zeigeFeedback, setZeigeFeedback] = useState(false);
       const [serie, setSerie] = useState(0);
@@ -1230,11 +1246,13 @@
       const farbeText = farbe.replace("bg-", "text-").replace("-500", "-700").replace("-400", "-700").replace("-600", "-700");
 
       const naechste = () => {
-        // Hier ggf. aus aktuellem fragenStatus ziehen — aber State ist schon aktuell weil parent updated
-        const neueAufgabe = naechsteFrage(themenfeldId, fragenStatus, lernwoerter);
+        const neueAufgabe = naechsteFrage(themenfeldId, fragenStatus, lernwoerter, letzteIds);
         setAufgabe(neueAufgabe);
         setGewaehlt(null);
         setZeigeFeedback(false);
+        if (neueAufgabe) {
+          setLetzteIds((prev) => [neueAufgabe.id, ...prev.filter((id) => id !== neueAufgabe.id)].slice(0, 5));
+        }
       };
 
       const antworten = (option) => {
