@@ -1395,7 +1395,11 @@
     function naechsteStatischeFrage(themenfeldId, fragenStatus, ausschluss = []) {
       const ids = FRAGEN_NACH_THEMENFELD[themenfeldId] || [];
       const id = gewichtetWaehlen(ids, fragenStatus, ausschluss);
-      return id ? { id, ...FRAGEN_KATALOG[id] } : null;
+      if (!id) return null;
+      const f = FRAGEN_KATALOG[id];
+      // Optionen pro Anzeige zufaellig mischen — sonst steht die richtige Antwort
+      // bei vielen Lehrplan-Fragen systematisch an Position 0.
+      return { id, ...f, optionen: shuffle(f.optionen) };
     }
 
     // Mathe-Generator: erzeuge mehrere Kandidaten, schliesse zuletzt gestellte aus,
