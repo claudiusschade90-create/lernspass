@@ -1,0 +1,6 @@
+# Cloud-Worker- und Sub-Agent-Spezifikationen (nicht ins Repo)
+cloud-prompt.md
+
+# Python-Cache
+__pycache__/
+*.pyc
