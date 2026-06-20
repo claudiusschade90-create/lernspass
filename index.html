@@ -15,7 +15,10 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <!-- Babel-Standalone auf 7.23.7 gepinnt — neuere Versionen wechseln teilweise
+       auf automatic-runtime, der import-Statements generiert und im Nicht-Modul-
+       Kontext einen SyntaxError wirft. -->
+  <script src="https://unpkg.com/@babel/standalone@7.23.7/babel.min.js"></script>
 
   <style>
     html, body {
@@ -57,8 +60,9 @@
 
 
   <!-- Phase-B-Daten in separatem <script>-Tag, damit Babel nicht 340 KB Daten
-       transformiert. Spart 5-10 Sekunden Initial-Load-Zeit. -->
-  <script>
+       transformiert. Spart 5-10 Sekunden Initial-Load-Zeit. type ist explizit
+       gesetzt, damit Babel-Standalone den Tag nicht versehentlich anpackt. -->
+  <script type="application/javascript">
     // ============================================================================
     // PHASE B — Zusatzinhalte aus Lehrplan-Sub-Agents (Mathe, Deutsch, HSU, Religion)
     // ============================================================================
