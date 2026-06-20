@@ -55,176 +55,14 @@
     </div>
   </div>
 
-  <script type="text/babel" data-presets="react">
-    const { useState, useEffect, useRef, useMemo } = React;
 
-    // ============================================================================
-    // STORAGE-KEYS
-    // ============================================================================
-    const KEY_PROFILE       = "lernapp_profile";
-    const KEY_AKTIV         = "lernapp_aktiv";
-    const KEY_PIN           = "lernapp_eltern_pin";
-    const KEY_MIGRIERT_V2   = "lernapp_migriert_v2";
-    const KEY_MIGRIERT_V3   = "lernapp_migriert_v3";
-    const KEY_ALT           = "lernapp_fortschritt";
-    const keyProfilDaten    = (id) => `lernapp_profil_${id}`;
-    const keyLernwoerter    = (id) => `lernapp_lernwoerter_${id}`;
-
-    const Storage = {
-      get(key) { try { const v = localStorage.getItem(key); return v != null ? v : null; } catch(e) { return null; } },
-      getJson(key, fallback) { try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch(e) { return fallback; } },
-      set(key, value) { try { localStorage.setItem(key, value); } catch(e) {} },
-      setJson(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); } catch(e) {} },
-      del(key) { try { localStorage.removeItem(key); } catch(e) {} },
-    };
-
-    // ============================================================================
-    // HILFSFUNKTIONEN
-    // ============================================================================
-    const rand = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
-    const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
-    const shuffle = (arr) => [...arr].sort(() => Math.random() - 0.5);
-
-    // ============================================================================
-    // KONFESSIONEN
-    // ============================================================================
-    const KONFESSIONEN = [
-      { id: "katholisch",  name: "Katholisch",          kurz: "Kath.",  emoji: "✝️", farbe: "from-amber-400 to-amber-600" },
-      { id: "evangelisch", name: "Evangelisch",         kurz: "Ev.",    emoji: "✝️", farbe: "from-violet-400 to-violet-600" },
-      { id: "ethik",       name: "Ethik",               kurz: "Ethik",  emoji: "🤝", farbe: "from-emerald-400 to-emerald-600" },
-      { id: "islamisch",   name: "Islamischer Unterricht", kurz: "Isl.", emoji: "☪️", farbe: "from-teal-400 to-teal-600" },
-    ];
-    const konfessionLabel = (id) => (KONFESSIONEN.find((k) => k.id === id) || {}).name || "—";
-    const konfessionEmoji = (id) => (KONFESSIONEN.find((k) => k.id === id) || {}).emoji || "";
-
-    // ============================================================================
-    // THEMENFELDER (Top-Level pro Fach — Phase B kann erweitern/aufteilen)
-    // ============================================================================
-    const THEMENFELDER = [
-      // === Mathe ===
-      { id: "mathe_plus_minus",  fach: "mathe",   name: "Plus & Minus",   beschreibung: "Zusammenzählen und Abziehen bis 100", emoji: "➕", farbe: "from-sky-400 to-sky-600" },
-      { id: "mathe_einmaleins",  fach: "mathe",   name: "Einmaleins",     beschreibung: "1er, 2er, 3er, 4er, 5er, 10er-Reihe", emoji: "✖️", farbe: "from-sky-400 to-sky-600" },
-      { id: "mathe_zahlen",      fach: "mathe",   name: "Zahlen verstehen", beschreibung: "Zehner & Einer, vergleichen",       emoji: "🔢", farbe: "from-sky-400 to-sky-600" },
-      { id: "mathe_uhr",         fach: "mathe",   name: "Uhrzeit lesen",  beschreibung: "Volle, halbe und Viertelstunden",     emoji: "🕐", farbe: "from-sky-400 to-sky-600" },
-      { id: "mathe_geld",        fach: "mathe",   name: "Geld rechnen",   beschreibung: "Münzen, Summen, Wechselgeld",         emoji: "💶", farbe: "from-sky-400 to-sky-600" },
-      // === Deutsch ===
-      { id: "deu_rechtschreibung", fach: "deutsch", name: "Rechtschreibung", beschreibung: "Großschreibung, ie, ck, tz",       emoji: "✏️", farbe: "from-rose-400 to-rose-600" },
-      { id: "deu_wortarten",       fach: "deutsch", name: "Wortarten",       beschreibung: "Nomen, Verben, Adjektive",         emoji: "🏷️", farbe: "from-rose-400 to-rose-600" },
-      { id: "deu_artikel",         fach: "deutsch", name: "Artikel",         beschreibung: "der, die, das",                    emoji: "🔤", farbe: "from-rose-400 to-rose-600" },
-      { id: "deu_silben",          fach: "deutsch", name: "Silben",          beschreibung: "Silben zählen",                    emoji: "🎵", farbe: "from-rose-400 to-rose-600" },
-      { id: "deu_satz",            fach: "deutsch", name: "Sätze & Reime",   beschreibung: "Satzzeichen und Reimwörter",       emoji: "📝", farbe: "from-rose-400 to-rose-600" },
-      { id: "deu_mehrzahl",        fach: "deutsch", name: "Mehrzahl",        beschreibung: "Einzahl und Mehrzahl",             emoji: "👥", farbe: "from-rose-400 to-rose-600" },
-      { id: "deu_lernwoerter",     fach: "deutsch", name: "Lernwörter",      beschreibung: "Eigene Wörter aus dem Schulheft",  emoji: "📖", farbe: "from-pink-400 to-fuchsia-500" },
-      // === HSU ===
-      { id: "hsu_bienen",        fach: "hsu",     name: "Bienen",          beschreibung: "Körper, Volk, Honig, Bestäubung",   emoji: "🐝", farbe: "from-amber-400 to-yellow-500" },
-      { id: "hsu_jahreszeiten",  fach: "hsu",     name: "Jahreszeiten",    beschreibung: "Frühling bis Winter",                emoji: "🌷", farbe: "from-emerald-400 to-emerald-600" },
-      { id: "hsu_tiere",         fach: "hsu",     name: "Tiere",           beschreibung: "Heimische Tiere und ihre Jungen",    emoji: "🦊", farbe: "from-emerald-400 to-emerald-600" },
-      { id: "hsu_heimat",        fach: "hsu",     name: "Bayern & Heimat", beschreibung: "Bundesland, München, Flagge",        emoji: "🏰", farbe: "from-emerald-400 to-emerald-600" },
-      { id: "hsu_verkehr",       fach: "hsu",     name: "Verkehr",         beschreibung: "Sicher im Straßenverkehr",           emoji: "🚦", farbe: "from-emerald-400 to-emerald-600" },
-      { id: "hsu_koerper",       fach: "hsu",     name: "Mein Körper",     beschreibung: "Organe und Gesundheit",              emoji: "❤️", farbe: "from-emerald-400 to-emerald-600" },
-      { id: "hsu_zeit",          fach: "hsu",     name: "Zeit",            beschreibung: "Stunden, Tage, Monate, Jahr",        emoji: "📅", farbe: "from-emerald-400 to-emerald-600" },
-      { id: "hsu_pflanzen",      fach: "hsu",     name: "Pflanzen",        beschreibung: "Was Pflanzen brauchen",              emoji: "🌱", farbe: "from-emerald-400 to-emerald-600" },
-      // Religion-Themenfelder werden weiter unten per THEMENFELDER.push() ergaenzt
-    ];
-
-    // ============================================================================
-    // FRAGEN-KATALOG (statische Fragen — Phase B erweitert deutlich)
-    // ============================================================================
-    // Schema: id, themenfeld, frage, optionen, antwort, hinweis, [visualisierung]
-    const FRAGEN_KATALOG = {
-      // === Deutsch — Rechtschreibung ===
-      "deu_recht_01": { themenfeld: "deu_rechtschreibung", frage: "Welches Wort schreibt man groß?", optionen: ["hund", "Hund", "schnell", "rot"], antwort: "Hund", hinweis: "Nomen (Namenwörter) schreibt man groß." },
-      "deu_recht_02": { themenfeld: "deu_rechtschreibung", frage: "Welches Wort schreibt man groß?", optionen: ["tasche", "grün", "Schule", "essen"], antwort: "Schule", hinweis: "Ein Ort/Gebäude ist ein Nomen." },
-      "deu_recht_03": { themenfeld: "deu_rechtschreibung", frage: "Wie schreibt man das Wort richtig?", optionen: ["Liebe", "Libe", "Liiebe", "Lieebe"], antwort: "Liebe", hinweis: "Langes i schreibt man oft 'ie'." },
-      "deu_recht_04": { themenfeld: "deu_rechtschreibung", frage: "Wie schreibt man das Wort richtig?", optionen: ["Tier", "Tir", "Tihr", "Thier"], antwort: "Tier", hinweis: "Langes i = ie." },
-      "deu_recht_05": { themenfeld: "deu_rechtschreibung", frage: "Wie schreibt man das Wort richtig?", optionen: ["Spil", "Spihl", "Spiel", "Spihel"], antwort: "Spiel", hinweis: "Langes i schreibt man 'ie'." },
-      "deu_recht_06": { themenfeld: "deu_rechtschreibung", frage: "Wie schreibt man das Wort richtig?", optionen: ["Zucker", "Zuker", "Zukker", "Zukcer"], antwort: "Zucker", hinweis: "Nach kurzem Vokal: ck." },
-      "deu_recht_07": { themenfeld: "deu_rechtschreibung", frage: "Wie schreibt man das Wort richtig?", optionen: ["Katse", "Kazze", "Katze", "Katzze"], antwort: "Katze", hinweis: "Nach kurzem Vokal: tz." },
-      // === Deutsch — Wortarten ===
-      "deu_wortarten_01": { themenfeld: "deu_wortarten", frage: "Welches Wort ist ein Nomen?", optionen: ["laufen", "schön", "Apfel", "und"], antwort: "Apfel", hinweis: "Nomen sind Dinge, Personen, Tiere oder Pflanzen." },
-      "deu_wortarten_02": { themenfeld: "deu_wortarten", frage: "Welches Wort ist ein Verb (Tunwort)?", optionen: ["Baum", "rennen", "blau", "schnell"], antwort: "rennen", hinweis: "Verben sagen, was jemand tut." },
-      "deu_wortarten_03": { themenfeld: "deu_wortarten", frage: "Welches Wort ist ein Adjektiv (Wie-Wort)?", optionen: ["singen", "Katze", "fröhlich", "Tisch"], antwort: "fröhlich", hinweis: "Adjektive beschreiben, wie etwas ist." },
-      // === Deutsch — Artikel ===
-      "deu_artikel_01": { themenfeld: "deu_artikel", frage: "Welcher Artikel passt? ___ Sonne", optionen: ["der", "die", "das"], antwort: "die", hinweis: "Sonne ist weiblich → die." },
-      "deu_artikel_02": { themenfeld: "deu_artikel", frage: "Welcher Artikel passt? ___ Hund", optionen: ["der", "die", "das"], antwort: "der", hinweis: "Hund ist männlich → der." },
-      "deu_artikel_03": { themenfeld: "deu_artikel", frage: "Welcher Artikel passt? ___ Kind", optionen: ["der", "die", "das"], antwort: "das", hinweis: "Kind ist sächlich → das." },
-      "deu_artikel_04": { themenfeld: "deu_artikel", frage: "Welcher Artikel passt? ___ Lehrerin", optionen: ["der", "die", "das"], antwort: "die", hinweis: "Lehrerin ist weiblich → die." },
-      // === Deutsch — Silben ===
-      "deu_silben_01": { themenfeld: "deu_silben", frage: "Wie viele Silben hat 'Sonnenblume'?", optionen: ["2", "3", "4", "5"], antwort: "4", hinweis: "Son-nen-blu-me — vier Silben." },
-      "deu_silben_02": { themenfeld: "deu_silben", frage: "Wie viele Silben hat 'Schule'?", optionen: ["1", "2", "3", "4"], antwort: "2", hinweis: "Schu-le — zwei Silben." },
-      // === Deutsch — Satzzeichen & Reime ===
-      "deu_satz_01": { themenfeld: "deu_satz", frage: "Welches Satzzeichen kommt ans Ende?  'Wie heißt du'", optionen: [".", "?", "!", ","], antwort: "?", hinweis: "Eine Frage endet mit '?'." },
-      "deu_satz_02": { themenfeld: "deu_satz", frage: "Welches Satzzeichen kommt ans Ende?  'Pass auf'", optionen: [".", "?", "!", ","], antwort: "!", hinweis: "Bei Ausrufen passt '!'." },
-      "deu_satz_03": { themenfeld: "deu_satz", frage: "Was reimt sich auf 'Haus'?", optionen: ["Hund", "Maus", "Tisch", "Auto"], antwort: "Maus", hinweis: "Haus — Maus, beide enden auf -aus." },
-      "deu_satz_04": { themenfeld: "deu_satz", frage: "Was reimt sich auf 'Katze'?", optionen: ["Hund", "Tatze", "Vogel", "Fisch"], antwort: "Tatze", hinweis: "Katze — Tatze, beide enden auf -atze." },
-      // === Deutsch — Mehrzahl ===
-      "deu_mehrzahl_01": { themenfeld: "deu_mehrzahl", frage: "Wie heißt die Mehrzahl von 'Buch'?", optionen: ["Buchs", "Bücher", "Buche", "Buchen"], antwort: "Bücher", hinweis: "Ein Buch — viele Bücher." },
-      "deu_mehrzahl_02": { themenfeld: "deu_mehrzahl", frage: "Wie heißt die Mehrzahl von 'Kind'?", optionen: ["Kinde", "Kinder", "Kindes", "Kindern"], antwort: "Kinder", hinweis: "Ein Kind — viele Kinder." },
-
-      // === HSU — Bienen ===
-      "hsu_bienen_01": { themenfeld: "hsu_bienen", frage: "Wie viele Beine hat eine Biene?", optionen: ["4", "6", "8", "10"], antwort: "6", hinweis: "Bienen sind Insekten — alle Insekten haben 6 Beine." },
-      "hsu_bienen_02": { themenfeld: "hsu_bienen", frage: "Wie viele Flügel hat eine Biene?", optionen: ["2", "4", "6", "8"], antwort: "4", hinweis: "Zwei vorne und zwei hinten — zusammen 4 Flügel." },
-      "hsu_bienen_03": { themenfeld: "hsu_bienen", frage: "In wie viele Teile ist der Körper einer Biene geteilt?", optionen: ["2", "3", "4", "5"], antwort: "3", hinweis: "Kopf, Brust und Hinterleib — drei Teile." },
-      "hsu_bienen_04": { themenfeld: "hsu_bienen", frage: "Womit sammelt die Biene Blütenstaub?", optionen: ["Mit den Flügeln", "Mit den Fühlern", "Mit den Beinen", "Mit dem Stachel"], antwort: "Mit den Beinen", hinweis: "An den Hinterbeinen sind die 'Pollenhöschen'." },
-      "hsu_bienen_05": { themenfeld: "hsu_bienen", frage: "Womit riecht und fühlt die Biene?", optionen: ["Mit den Augen", "Mit den Fühlern", "Mit den Flügeln", "Mit dem Stachel"], antwort: "Mit den Fühlern", hinweis: "Die Fühler heißen auch Antennen." },
-      "hsu_bienen_06": { themenfeld: "hsu_bienen", frage: "Womit saugt die Biene den Nektar aus den Blüten?", optionen: ["Mit dem Stachel", "Mit den Beinen", "Mit dem Rüssel", "Mit den Fühlern"], antwort: "Mit dem Rüssel", hinweis: "Der Rüssel ist wie ein Strohhalm." },
-      "hsu_bienen_07": { themenfeld: "hsu_bienen", frage: "Wer legt im Bienenvolk die Eier?", optionen: ["Die Arbeiterin", "Die Drohne", "Die Königin", "Der Imker"], antwort: "Die Königin", hinweis: "Es gibt nur EINE Königin pro Volk." },
-      "hsu_bienen_08": { themenfeld: "hsu_bienen", frage: "Wie nennt man die männlichen Bienen?", optionen: ["Drohnen", "Wespen", "Hummeln", "Königinnen"], antwort: "Drohnen", hinweis: "Drohnen haben keinen Stachel." },
-      "hsu_bienen_09": { themenfeld: "hsu_bienen", frage: "Wer macht im Bienenvolk fast die ganze Arbeit?", optionen: ["Die Königin", "Die Drohnen", "Die Arbeiterinnen", "Der Imker"], antwort: "Die Arbeiterinnen", hinweis: "Tausende Arbeiterinnen kümmern sich um alles." },
-      "hsu_bienen_10": { themenfeld: "hsu_bienen", frage: "Wie viele Königinnen gibt es in einem Bienenvolk?", optionen: ["Eine", "Zwei", "Zehn", "Hundert"], antwort: "Eine", hinweis: "Nur eine einzige Königin regiert das Volk." },
-      "hsu_bienen_11": { themenfeld: "hsu_bienen", frage: "Wo wohnen Honigbienen?", optionen: ["Im Ameisenhaufen", "Im Bienenstock", "In der Erde", "Im Vogelnest"], antwort: "Im Bienenstock", hinweis: "Imker bauen Bienenkästen — das sind Bienenstöcke." },
-      "hsu_bienen_12": { themenfeld: "hsu_bienen", frage: "Wie heißen die kleinen Räume, in denen Bienen Honig lagern und ihre Babys großziehen?", optionen: ["Höhlen", "Waben", "Nester", "Töpfe"], antwort: "Waben", hinweis: "Die sechseckigen Zellen heißen Waben." },
-      "hsu_bienen_13": { themenfeld: "hsu_bienen", frage: "Welche Form haben die Waben einer Biene?", optionen: ["Rund", "Viereckig", "Sechseckig", "Dreieckig"], antwort: "Sechseckig", hinweis: "Sechs Ecken — eine schlaue Form, die viel Platz spart." },
-      "hsu_bienen_14": { themenfeld: "hsu_bienen", frage: "Was machen Bienen aus Nektar?", optionen: ["Milch", "Honig", "Wasser", "Saft"], antwort: "Honig", hinweis: "Im Bienenstock wird Nektar zu Honig." },
-      "hsu_bienen_15": { themenfeld: "hsu_bienen", frage: "Woraus bauen Bienen ihre Waben?", optionen: ["Aus Holz", "Aus Wachs", "Aus Erde", "Aus Papier"], antwort: "Aus Wachs", hinweis: "Bienen schwitzen das Wachs selbst aus dem Bauch." },
-      "hsu_bienen_16": { themenfeld: "hsu_bienen", frage: "Warum sind Bienen wichtig für die Natur?", optionen: ["Sie machen Lärm", "Sie bestäuben Blüten", "Sie fressen Schädlinge", "Sie bauen Nester für Vögel"], antwort: "Sie bestäuben Blüten", hinweis: "Ohne Bestäubung gäbe es kaum Obst und Gemüse." },
-      "hsu_bienen_17": { themenfeld: "hsu_bienen", frage: "Was heißt 'bestäuben'?", optionen: ["Staub wegmachen", "Blütenstaub von Blüte zu Blüte tragen", "Honig sammeln", "Wasser holen"], antwort: "Blütenstaub von Blüte zu Blüte tragen", hinweis: "So entstehen aus Blüten Früchte." },
-      "hsu_bienen_18": { themenfeld: "hsu_bienen", frage: "Was passiert, wenn keine Bienen mehr Blüten bestäuben?", optionen: ["Es regnet mehr", "Es wachsen weniger Früchte", "Es wird wärmer", "Nichts"], antwort: "Es wachsen weniger Früchte", hinweis: "Äpfel, Kirschen, Erdbeeren brauchen Bienen." },
-      "hsu_bienen_19": { themenfeld: "hsu_bienen", frage: "Wer kümmert sich um Bienen und holt den Honig?", optionen: ["Der Bauer", "Der Förster", "Der Imker", "Der Gärtner"], antwort: "Der Imker", hinweis: "Imker pflegen die Bienenvölker." },
-      "hsu_bienen_20": { themenfeld: "hsu_bienen", frage: "Wie tanzen Bienen, um anderen den Weg zu Blüten zu zeigen?", optionen: ["Sie pfeifen", "Sie schreiben", "Sie tanzen einen Schwänzeltanz", "Sie rufen laut"], antwort: "Sie tanzen einen Schwänzeltanz", hinweis: "Mit dem Tanz erzählen sie, wo das Futter ist." },
-      "hsu_bienen_21": { themenfeld: "hsu_bienen", frage: "Was sammeln Bienen in den Blüten?", optionen: ["Nur Wasser", "Nektar und Pollen", "Honig", "Wachs"], antwort: "Nektar und Pollen", hinweis: "Nektar wird zu Honig, Pollen ist das 'Brot' der Bienen." },
-      "hsu_bienen_22": { themenfeld: "hsu_bienen", frage: "Was passiert mit der Biene, wenn sie einen Menschen sticht?", optionen: ["Nichts", "Sie stirbt", "Sie wird größer", "Sie fliegt weg"], antwort: "Sie stirbt", hinweis: "Der Stachel bleibt stecken und reißt der Biene den Hinterleib auf." },
-      "hsu_bienen_23": { themenfeld: "hsu_bienen", frage: "Wie verhältst du dich am besten, wenn eine Biene um dich herumfliegt?", optionen: ["Schnell wegrennen", "Mit den Armen wedeln", "Ruhig stehen bleiben", "Nach ihr schlagen"], antwort: "Ruhig stehen bleiben", hinweis: "Bienen stechen nur, wenn sie sich bedroht fühlen." },
-      "hsu_bienen_24": { themenfeld: "hsu_bienen", frage: "Welche Bienen haben einen Stachel?", optionen: ["Nur die Königin und die Arbeiterinnen", "Nur die Drohnen", "Alle Bienen", "Keine Biene"], antwort: "Nur die Königin und die Arbeiterinnen", hinweis: "Die männlichen Drohnen haben keinen Stachel." },
-      "hsu_bienen_25": { themenfeld: "hsu_bienen", frage: "Was macht ein Bienenvolk im Winter?", optionen: ["Es schläft draußen", "Es fliegt nach Süden", "Es bleibt im Stock zusammen und wärmt sich", "Es stirbt komplett"], antwort: "Es bleibt im Stock zusammen und wärmt sich", hinweis: "Die Bienen bilden eine warme 'Wintertraube'." },
-
-      // === HSU — Jahreszeiten ===
-      "hsu_jahreszeiten_01": { themenfeld: "hsu_jahreszeiten", frage: "Welche Jahreszeit kommt nach dem Frühling?", optionen: ["Winter", "Herbst", "Sommer", "Frühling"], antwort: "Sommer", hinweis: "Frühling → Sommer → Herbst → Winter." },
-      "hsu_jahreszeiten_02": { themenfeld: "hsu_jahreszeiten", frage: "Wann fallen die Blätter von den Bäumen?", optionen: ["Frühling", "Sommer", "Herbst", "Winter"], antwort: "Herbst", hinweis: "Im Herbst werden Blätter bunt und fallen." },
-      "hsu_jahreszeiten_03": { themenfeld: "hsu_jahreszeiten", frage: "In welcher Jahreszeit blühen die meisten Blumen zuerst?", optionen: ["Winter", "Frühling", "Herbst", "Sommer"], antwort: "Frühling", hinweis: "Im Frühling erwacht die Natur." },
-      // === HSU — Tiere ===
-      "hsu_tiere_01": { themenfeld: "hsu_tiere", frage: "Welches Tier ist ein Säugetier?", optionen: ["Forelle", "Adler", "Reh", "Frosch"], antwort: "Reh", hinweis: "Säugetiere säugen ihre Jungen mit Milch." },
-      "hsu_tiere_02": { themenfeld: "hsu_tiere", frage: "Was frisst ein Igel am liebsten?", optionen: ["Gras", "Würmer und Insekten", "Fische", "Nüsse"], antwort: "Würmer und Insekten", hinweis: "Der Igel ist ein Insektenfresser." },
-      "hsu_tiere_03": { themenfeld: "hsu_tiere", frage: "Welches Tier hält Winterschlaf?", optionen: ["Eichhörnchen", "Reh", "Igel", "Fuchs"], antwort: "Igel", hinweis: "Igel schlafen den ganzen Winter durch." },
-      "hsu_tiere_04": { themenfeld: "hsu_tiere", frage: "Wie viele Beine hat eine Spinne?", optionen: ["6", "8", "10", "4"], antwort: "8", hinweis: "Spinnen haben immer 8 Beine, Insekten nur 6." },
-      "hsu_tiere_05": { themenfeld: "hsu_tiere", frage: "Wie nennt man das Junge vom Schwein?", optionen: ["Kalb", "Lamm", "Ferkel", "Fohlen"], antwort: "Ferkel", hinweis: "Das Schweinejunge heißt Ferkel." },
-      "hsu_tiere_06": { themenfeld: "hsu_tiere", frage: "Wie nennt man das Junge vom Pferd?", optionen: ["Fohlen", "Kalb", "Welpe", "Küken"], antwort: "Fohlen", hinweis: "Ein junges Pferd heißt Fohlen." },
-      // === HSU — Bayern & Heimat ===
-      "hsu_heimat_01": { themenfeld: "hsu_heimat", frage: "In welchem Bundesland liegt Berg?", optionen: ["Hessen", "Bayern", "Sachsen", "Baden-Württemberg"], antwort: "Bayern", hinweis: "Berg liegt in Bayern." },
-      "hsu_heimat_02": { themenfeld: "hsu_heimat", frage: "Wie heißt die Hauptstadt von Bayern?", optionen: ["Nürnberg", "Augsburg", "München", "Regensburg"], antwort: "München", hinweis: "München ist die Landeshauptstadt." },
-      "hsu_heimat_03": { themenfeld: "hsu_heimat", frage: "Welche Farben hat die bayerische Flagge?", optionen: ["Rot-Gold", "Schwarz-Rot-Gold", "Weiß-Blau", "Grün-Weiß"], antwort: "Weiß-Blau", hinweis: "Bayern hat eine weiß-blaue Rautenflagge." },
-      // === HSU — Verkehr ===
-      "hsu_verkehr_01": { themenfeld: "hsu_verkehr", frage: "Was bedeutet eine rote Ampel für Fußgänger?", optionen: ["Gehen", "Warten", "Schnell laufen", "Egal"], antwort: "Warten", hinweis: "Rot heißt immer stehenbleiben." },
-      "hsu_verkehr_02": { themenfeld: "hsu_verkehr", frage: "Wo überquerst du am sichersten die Straße?", optionen: ["Zwischen Autos", "Am Zebrastreifen", "Mitten auf der Straße", "Hinter einem Bus"], antwort: "Am Zebrastreifen", hinweis: "Zebrastreifen sind extra für Fußgänger." },
-      "hsu_verkehr_03": { themenfeld: "hsu_verkehr", frage: "Auf welcher Seite des Gehwegs gehst du am sichersten?", optionen: ["Nah am Auto", "Nah an Häusern", "In der Mitte", "Auf der Straße"], antwort: "Nah an Häusern", hinweis: "Möglichst weit weg von fahrenden Autos." },
-      // === HSU — Körper ===
-      "hsu_koerper_01": { themenfeld: "hsu_koerper", frage: "Welches Organ pumpt das Blut durch den Körper?", optionen: ["Lunge", "Herz", "Magen", "Leber"], antwort: "Herz", hinweis: "Das Herz schlägt Tag und Nacht." },
-      "hsu_koerper_02": { themenfeld: "hsu_koerper", frage: "Womit atmen wir?", optionen: ["Mit dem Magen", "Mit dem Herzen", "Mit der Lunge", "Mit der Leber"], antwort: "Mit der Lunge", hinweis: "Die Lunge holt Luft in den Körper." },
-      "hsu_koerper_03": { themenfeld: "hsu_koerper", frage: "Wie viele Zähne hat ein Erwachsener normal?", optionen: ["20", "24", "32", "40"], antwort: "32", hinweis: "Kinder haben weniger — Milchzähne." },
-      // === HSU — Zeit ===
-      "hsu_zeit_01": { themenfeld: "hsu_zeit", frage: "Wie viele Stunden hat ein Tag?", optionen: ["12", "24", "20", "60"], antwort: "24", hinweis: "Ein Tag und eine Nacht zusammen: 24 Stunden." },
-      "hsu_zeit_02": { themenfeld: "hsu_zeit", frage: "Wie viele Minuten hat eine Stunde?", optionen: ["30", "50", "60", "100"], antwort: "60", hinweis: "Eine Stunde besteht aus 60 Minuten." },
-      "hsu_zeit_03": { themenfeld: "hsu_zeit", frage: "Welcher Tag kommt nach Mittwoch?", optionen: ["Dienstag", "Donnerstag", "Freitag", "Sonntag"], antwort: "Donnerstag", hinweis: "Mo–Di–Mi–Do–Fr–Sa–So." },
-      "hsu_zeit_04": { themenfeld: "hsu_zeit", frage: "Wie viele Monate hat ein Jahr?", optionen: ["10", "11", "12", "14"], antwort: "12", hinweis: "Januar bis Dezember — 12 Monate." },
-      // === HSU — Pflanzen ===
-      "hsu_pflanzen_01": { themenfeld: "hsu_pflanzen", frage: "Was brauchen Pflanzen zum Wachsen?", optionen: ["Nur Wasser", "Licht, Wasser und Erde", "Nur Licht", "Schokolade"], antwort: "Licht, Wasser und Erde", hinweis: "Pflanzen brauchen alle drei zusammen." },
-      "hsu_pflanzen_02": { themenfeld: "hsu_pflanzen", frage: "Welcher Teil der Pflanze ist unter der Erde?", optionen: ["Blüte", "Stängel", "Wurzel", "Blatt"], antwort: "Wurzel", hinweis: "Die Wurzel hält die Pflanze und nimmt Wasser auf." },
-    };
-
+  <!-- Phase-B-Daten in separatem <script>-Tag, damit Babel nicht 340 KB Daten
+       transformiert. Spart 5-10 Sekunden Initial-Load-Zeit. -->
+  <script>
     // ============================================================================
     // PHASE B — Zusatzinhalte aus Lehrplan-Sub-Agents (Mathe, Deutsch, HSU, Religion)
     // ============================================================================
-    THEMENFELDER.push(
+    window.LERNSPASS_THEMENFELDER_NEU = [
       // Mathe (neu)
       { id: "mathe_sachaufgaben", fach: "mathe", name: "Sachaufgaben",    beschreibung: "Plus, Minus, Einmaleins als Textaufgaben", emoji: "📖", farbe: "from-sky-400 to-sky-600" },
       { id: "mathe_formen",       fach: "mathe", name: "Raum und Form",   beschreibung: "Grundformen, Symmetrie, Würfel und Quader", emoji: "🔺", farbe: "from-sky-400 to-sky-600" },
@@ -269,10 +107,12 @@
       { id: "rel_isl_gebet",        fach: "religion", konfession: "islamisch", name: "Gebet & Moschee",        beschreibung: "Wie und wo Muslime beten",    emoji: "🕌", farbe: "from-teal-400 to-teal-600" },
       { id: "rel_isl_feste",        fach: "religion", konfession: "islamisch", name: "Islamische Feste",       beschreibung: "Ramadan, Eid",                emoji: "🌙", farbe: "from-teal-400 to-teal-600" },
       { id: "rel_isl_zusammenleben",fach: "religion", konfession: "islamisch", name: "Zusammenleben & gute Taten", beschreibung: "Eltern ehren, helfen, teilen", emoji: "🤝", farbe: "from-teal-400 to-teal-600" }
-    );
+    ];
+
+    window.LERNSPASS_FRAGEN_NEU = {};
 
     // === Mathe-Fragen (114) ===
-    Object.assign(FRAGEN_KATALOG, {
+    Object.assign(window.LERNSPASS_FRAGEN_NEU, {
       "mat_sach_01": { themenfeld: "mathe_sachaufgaben", frage: "Anna hat 12 Äpfel. Sie verschenkt 5 Äpfel an Freunde. Wie viele Äpfel bleiben Anna?", optionen: ["5","6","7","17"], antwort: "7", hinweis: "Verschenken heißt minus. 12 − 5 = 7" },
       "mat_sach_02": { themenfeld: "mathe_sachaufgaben", frage: "Im Bus sitzen 14 Kinder. An der nächsten Haltestelle steigen 6 Kinder ein. Wie viele Kinder sind jetzt im Bus?", optionen: ["18","19","20","21"], antwort: "20", hinweis: "Einsteigen heißt plus. 14 + 6 = 20" },
       "mat_sach_03": { themenfeld: "mathe_sachaufgaben", frage: "Tim hat 3 Tüten mit je 4 Bonbons. Wie viele Bonbons hat Tim insgesamt?", optionen: ["7","10","12","16"], antwort: "12", hinweis: "3 mal 4 Bonbons. 3 · 4 = 12" },
@@ -390,7 +230,7 @@
     });
 
     // === Deutsch-Fragen (222) ===
-    Object.assign(FRAGEN_KATALOG, {
+    Object.assign(window.LERNSPASS_FRAGEN_NEU, {
       "deu_recht_08": { themenfeld: "deu_rechtschreibung", frage: "Wie schreibt man das Wort richtig?", optionen: ["Mutter","Muter","Muttter","Mtuter"], antwort: "Mutter", hinweis: "Nach kurzem Vokal kommt ein Doppelkonsonant: tt." },
       "deu_recht_09": { themenfeld: "deu_rechtschreibung", frage: "Welches Wort ist richtig geschrieben?", optionen: ["Sonne","Sone","Sohnne","Sonnne"], antwort: "Sonne", hinweis: "Nach kurzem o folgt nn." },
       "deu_recht_10": { themenfeld: "deu_rechtschreibung", frage: "Wie schreibt man dieses Wort richtig?", optionen: ["Zucker","Zuker","Zuhker","Zukker"], antwort: "Zucker", hinweis: "Nach kurzem Vokal schreibt man ck statt kk." },
@@ -627,7 +467,7 @@
     });
 
     // === HSU-Fragen (161) ===
-    Object.assign(FRAGEN_KATALOG, {
+    Object.assign(window.LERNSPASS_FRAGEN_NEU, {
       "hsu_jahreszeiten_04": { themenfeld: "hsu_jahreszeiten", frage: "Welche Tiere ziehen im Herbst in den Süden?", optionen: ["Mäuse","Zugvögel wie Störche","Igel","Bären"], antwort: "Zugvögel wie Störche", hinweis: "Viele Vögel wie Störche und Schwalben fliegen im Herbst nach Süden." },
       "hsu_jahreszeiten_05": { themenfeld: "hsu_jahreszeiten", frage: "Wie viele Jahreszeiten gibt es bei uns in Bayern?", optionen: ["Zwei","Drei","Vier","Fünf"], antwort: "Vier", hinweis: "Frühling, Sommer, Herbst und Winter sind die vier Jahreszeiten." },
       "hsu_jahreszeiten_06": { themenfeld: "hsu_jahreszeiten", frage: "In welcher Jahreszeit fallen die Blätter von den Bäumen?", optionen: ["Frühling","Sommer","Herbst","Winter"], antwort: "Herbst", hinweis: "Im Herbst werden die Blätter bunt und fallen ab." },
@@ -821,7 +661,7 @@
     });
 
     // === Religion — Katholisch (99 Fragen) ===
-    Object.assign(FRAGEN_KATALOG, {
+    Object.assign(window.LERNSPASS_FRAGEN_NEU, {
       "rel_kath_ichduwir_01": { themenfeld: "rel_kath_ichduwir", konfession: "katholisch", frage: "Wer hat laut der Bibel den Menschen erschaffen?", optionen: ["Gott","Ein Zauberer","Die Sonne","Die Engel"], antwort: "Gott", hinweis: "In der Bibel steht, dass Gott den Menschen erschaffen hat." },
       "rel_kath_ichduwir_02": { themenfeld: "rel_kath_ichduwir", konfession: "katholisch", frage: "Wie nennt man Menschen, mit denen man gerne spielt und denen man vertraut?", optionen: ["Fremde","Freunde","Nachbarn","Lehrer"], antwort: "Freunde", hinweis: "Freunde sind wichtig im Leben." },
       "rel_kath_ichduwir_03": { themenfeld: "rel_kath_ichduwir", konfession: "katholisch", frage: "Was bedeutet es laut der Bibel, dass jeder Mensch einzigartig ist?", optionen: ["Alle Menschen sind gleich","Jeder Mensch ist besonders","Nur Erwachsene sind wichtig","Nur Kinder sind besonders"], antwort: "Jeder Mensch ist besonders", hinweis: "Christen glauben, dass Gott jeden Menschen einzigartig geschaffen hat." },
@@ -924,7 +764,7 @@
     });
 
     // === Religion — Evangelisch (108 Fragen) ===
-    Object.assign(FRAGEN_KATALOG, {
+    Object.assign(window.LERNSPASS_FRAGEN_NEU, {
       "rel_ev_ichundgott_01": { themenfeld: "rel_ev_ichundgott", konfession: "evangelisch", frage: "Wie nennt man ein Gespräch mit Gott?", optionen: ["Gebet","Lied","Brief","Rätsel"], antwort: "Gebet", hinweis: "Beim Beten sprechen Menschen mit Gott." },
       "rel_ev_ichundgott_02": { themenfeld: "rel_ev_ichundgott", konfession: "evangelisch", frage: "Wie beginnt das bekannteste Gebet der Christen?", optionen: ["Vater unser","Guten Morgen","Lieber Gott, ich danke dir","Hallo Welt"], antwort: "Vater unser", hinweis: "Das Vaterunser hat Jesus selbst seinen Freunden beigebracht." },
       "rel_ev_ichundgott_03": { themenfeld: "rel_ev_ichundgott", konfession: "evangelisch", frage: "Wann falten viele Menschen die Hände?", optionen: ["Beim Beten","Beim Essen kochen","Beim Schwimmen","Beim Schlafen"], antwort: "Beim Beten", hinweis: "Hände falten ist eine Geste, um sich zu sammeln." },
@@ -1040,7 +880,7 @@
     });
 
     // === Religion — Ethik (92 Fragen) ===
-    Object.assign(FRAGEN_KATALOG, {
+    Object.assign(window.LERNSPASS_FRAGEN_NEU, {
       "rel_ethik_ich_01": { themenfeld: "rel_ethik_ich", konfession: "ethik", frage: "Was ist ein Gefühl?", optionen: ["Etwas, das ich anfassen kann","Etwas, das ich in mir spüre","Ein Spielzeug","Ein Buch"], antwort: "Etwas, das ich in mir spüre", hinweis: "Freude, Angst oder Wut sind Gefühle, die wir innen spüren." },
       "rel_ethik_ich_02": { themenfeld: "rel_ethik_ich", konfession: "ethik", frage: "Wie fühlst du dich, wenn dich jemand auslacht?", optionen: ["Glücklich","Traurig oder wütend","Sehr stolz","Müde"], antwort: "Traurig oder wütend", hinweis: "Ausgelacht zu werden tut weh." },
       "rel_ethik_ich_03": { themenfeld: "rel_ethik_ich", konfession: "ethik", frage: "Was macht ein guter Freund?", optionen: ["Er nimmt mir Sachen weg","Er hört mir zu und hilft mir","Er lacht mich aus","Er petzt immer"], antwort: "Er hört mir zu und hilft mir", hinweis: "Echte Freunde sind füreinander da." },
@@ -1136,7 +976,7 @@
     });
 
     // === Religion — Islamisch (96 Fragen) ===
-    Object.assign(FRAGEN_KATALOG, {
+    Object.assign(window.LERNSPASS_FRAGEN_NEU, {
       "rel_isl_allah_01": { themenfeld: "rel_isl_allah", konfession: "islamisch", frage: "Wie nennen Muslime Gott auf Arabisch?", optionen: ["Allah","Jesus","Buddha","Moses"], antwort: "Allah", hinweis: "Allah ist das arabische Wort für Gott." },
       "rel_isl_allah_02": { themenfeld: "rel_isl_allah", konfession: "islamisch", frage: "An wie viele Götter glauben Muslime?", optionen: ["Einen","Zwei","Drei","Viele"], antwort: "Einen", hinweis: "Muslime glauben an einen einzigen Gott." },
       "rel_isl_allah_03": { themenfeld: "rel_isl_allah", konfession: "islamisch", frage: "Wer hat nach dem Glauben der Muslime die Welt erschaffen?", optionen: ["Allah","Die Menschen","Die Tiere","Die Engel"], antwort: "Allah", hinweis: "Muslime glauben, dass Allah der Schöpfer von allem ist." },
@@ -1234,6 +1074,178 @@
       "rel_isl_zusammenleben_15": { themenfeld: "rel_isl_zusammenleben", konfession: "islamisch", frage: "Was tun Muslime gerne im Ramadan für andere?", optionen: ["Sie spenden und teilen Essen","Sie machen Lärm","Sie streiten","Sie verstecken sich"], antwort: "Sie spenden und teilen Essen", hinweis: "Im Ramadan ist Teilen besonders wichtig." },
       "rel_isl_zusammenleben_16": { themenfeld: "rel_isl_zusammenleben", konfession: "islamisch", frage: "Wie sollen Kinder im Islam mit Mitschülern anderer Religionen umgehen?", optionen: ["Respektvoll und freundlich","Sie auslachen","Sie meiden","Sie ärgern"], antwort: "Respektvoll und freundlich", hinweis: "Respekt vor anderen Religionen ist Teil des Lehrplans." }
     });
+
+  </script>
+
+  <script type="text/babel" data-presets="react">
+    const { useState, useEffect, useRef, useMemo } = React;
+
+    // ============================================================================
+    // STORAGE-KEYS
+    // ============================================================================
+    const KEY_PROFILE       = "lernapp_profile";
+    const KEY_AKTIV         = "lernapp_aktiv";
+    const KEY_PIN           = "lernapp_eltern_pin";
+    const KEY_MIGRIERT_V2   = "lernapp_migriert_v2";
+    const KEY_MIGRIERT_V3   = "lernapp_migriert_v3";
+    const KEY_ALT           = "lernapp_fortschritt";
+    const keyProfilDaten    = (id) => `lernapp_profil_${id}`;
+    const keyLernwoerter    = (id) => `lernapp_lernwoerter_${id}`;
+
+    const Storage = {
+      get(key) { try { const v = localStorage.getItem(key); return v != null ? v : null; } catch(e) { return null; } },
+      getJson(key, fallback) { try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch(e) { return fallback; } },
+      set(key, value) { try { localStorage.setItem(key, value); } catch(e) {} },
+      setJson(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); } catch(e) {} },
+      del(key) { try { localStorage.removeItem(key); } catch(e) {} },
+    };
+
+    // ============================================================================
+    // HILFSFUNKTIONEN
+    // ============================================================================
+    const rand = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+    const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+    const shuffle = (arr) => [...arr].sort(() => Math.random() - 0.5);
+
+    // ============================================================================
+    // KONFESSIONEN
+    // ============================================================================
+    const KONFESSIONEN = [
+      { id: "katholisch",  name: "Katholisch",          kurz: "Kath.",  emoji: "✝️", farbe: "from-amber-400 to-amber-600" },
+      { id: "evangelisch", name: "Evangelisch",         kurz: "Ev.",    emoji: "✝️", farbe: "from-violet-400 to-violet-600" },
+      { id: "ethik",       name: "Ethik",               kurz: "Ethik",  emoji: "🤝", farbe: "from-emerald-400 to-emerald-600" },
+      { id: "islamisch",   name: "Islamischer Unterricht", kurz: "Isl.", emoji: "☪️", farbe: "from-teal-400 to-teal-600" },
+    ];
+    const konfessionLabel = (id) => (KONFESSIONEN.find((k) => k.id === id) || {}).name || "—";
+    const konfessionEmoji = (id) => (KONFESSIONEN.find((k) => k.id === id) || {}).emoji || "";
+
+    // ============================================================================
+    // THEMENFELDER (Top-Level pro Fach — Phase B kann erweitern/aufteilen)
+    // ============================================================================
+    const THEMENFELDER = [
+      // === Mathe ===
+      { id: "mathe_plus_minus",  fach: "mathe",   name: "Plus & Minus",   beschreibung: "Zusammenzählen und Abziehen bis 100", emoji: "➕", farbe: "from-sky-400 to-sky-600" },
+      { id: "mathe_einmaleins",  fach: "mathe",   name: "Einmaleins",     beschreibung: "1er, 2er, 3er, 4er, 5er, 10er-Reihe", emoji: "✖️", farbe: "from-sky-400 to-sky-600" },
+      { id: "mathe_zahlen",      fach: "mathe",   name: "Zahlen verstehen", beschreibung: "Zehner & Einer, vergleichen",       emoji: "🔢", farbe: "from-sky-400 to-sky-600" },
+      { id: "mathe_uhr",         fach: "mathe",   name: "Uhrzeit lesen",  beschreibung: "Volle, halbe und Viertelstunden",     emoji: "🕐", farbe: "from-sky-400 to-sky-600" },
+      { id: "mathe_geld",        fach: "mathe",   name: "Geld rechnen",   beschreibung: "Münzen, Summen, Wechselgeld",         emoji: "💶", farbe: "from-sky-400 to-sky-600" },
+      // === Deutsch ===
+      { id: "deu_rechtschreibung", fach: "deutsch", name: "Rechtschreibung", beschreibung: "Großschreibung, ie, ck, tz",       emoji: "✏️", farbe: "from-rose-400 to-rose-600" },
+      { id: "deu_wortarten",       fach: "deutsch", name: "Wortarten",       beschreibung: "Nomen, Verben, Adjektive",         emoji: "🏷️", farbe: "from-rose-400 to-rose-600" },
+      { id: "deu_artikel",         fach: "deutsch", name: "Artikel",         beschreibung: "der, die, das",                    emoji: "🔤", farbe: "from-rose-400 to-rose-600" },
+      { id: "deu_silben",          fach: "deutsch", name: "Silben",          beschreibung: "Silben zählen",                    emoji: "🎵", farbe: "from-rose-400 to-rose-600" },
+      { id: "deu_satz",            fach: "deutsch", name: "Sätze & Reime",   beschreibung: "Satzzeichen und Reimwörter",       emoji: "📝", farbe: "from-rose-400 to-rose-600" },
+      { id: "deu_mehrzahl",        fach: "deutsch", name: "Mehrzahl",        beschreibung: "Einzahl und Mehrzahl",             emoji: "👥", farbe: "from-rose-400 to-rose-600" },
+      { id: "deu_lernwoerter",     fach: "deutsch", name: "Lernwörter",      beschreibung: "Eigene Wörter aus dem Schulheft",  emoji: "📖", farbe: "from-pink-400 to-fuchsia-500" },
+      // === HSU ===
+      { id: "hsu_bienen",        fach: "hsu",     name: "Bienen",          beschreibung: "Körper, Volk, Honig, Bestäubung",   emoji: "🐝", farbe: "from-amber-400 to-yellow-500" },
+      { id: "hsu_jahreszeiten",  fach: "hsu",     name: "Jahreszeiten",    beschreibung: "Frühling bis Winter",                emoji: "🌷", farbe: "from-emerald-400 to-emerald-600" },
+      { id: "hsu_tiere",         fach: "hsu",     name: "Tiere",           beschreibung: "Heimische Tiere und ihre Jungen",    emoji: "🦊", farbe: "from-emerald-400 to-emerald-600" },
+      { id: "hsu_heimat",        fach: "hsu",     name: "Bayern & Heimat", beschreibung: "Bundesland, München, Flagge",        emoji: "🏰", farbe: "from-emerald-400 to-emerald-600" },
+      { id: "hsu_verkehr",       fach: "hsu",     name: "Verkehr",         beschreibung: "Sicher im Straßenverkehr",           emoji: "🚦", farbe: "from-emerald-400 to-emerald-600" },
+      { id: "hsu_koerper",       fach: "hsu",     name: "Mein Körper",     beschreibung: "Organe und Gesundheit",              emoji: "❤️", farbe: "from-emerald-400 to-emerald-600" },
+      { id: "hsu_zeit",          fach: "hsu",     name: "Zeit",            beschreibung: "Stunden, Tage, Monate, Jahr",        emoji: "📅", farbe: "from-emerald-400 to-emerald-600" },
+      { id: "hsu_pflanzen",      fach: "hsu",     name: "Pflanzen",        beschreibung: "Was Pflanzen brauchen",              emoji: "🌱", farbe: "from-emerald-400 to-emerald-600" },
+      // Religion-Themenfelder werden weiter unten per THEMENFELDER.push() ergaenzt
+    ];
+
+    // ============================================================================
+    // FRAGEN-KATALOG (statische Fragen — Phase B erweitert deutlich)
+    // ============================================================================
+    // Schema: id, themenfeld, frage, optionen, antwort, hinweis, [visualisierung]
+    const FRAGEN_KATALOG = {
+      // === Deutsch — Rechtschreibung ===
+      "deu_recht_01": { themenfeld: "deu_rechtschreibung", frage: "Welches Wort schreibt man groß?", optionen: ["hund", "Hund", "schnell", "rot"], antwort: "Hund", hinweis: "Nomen (Namenwörter) schreibt man groß." },
+      "deu_recht_02": { themenfeld: "deu_rechtschreibung", frage: "Welches Wort schreibt man groß?", optionen: ["tasche", "grün", "Schule", "essen"], antwort: "Schule", hinweis: "Ein Ort/Gebäude ist ein Nomen." },
+      "deu_recht_03": { themenfeld: "deu_rechtschreibung", frage: "Wie schreibt man das Wort richtig?", optionen: ["Liebe", "Libe", "Liiebe", "Lieebe"], antwort: "Liebe", hinweis: "Langes i schreibt man oft 'ie'." },
+      "deu_recht_04": { themenfeld: "deu_rechtschreibung", frage: "Wie schreibt man das Wort richtig?", optionen: ["Tier", "Tir", "Tihr", "Thier"], antwort: "Tier", hinweis: "Langes i = ie." },
+      "deu_recht_05": { themenfeld: "deu_rechtschreibung", frage: "Wie schreibt man das Wort richtig?", optionen: ["Spil", "Spihl", "Spiel", "Spihel"], antwort: "Spiel", hinweis: "Langes i schreibt man 'ie'." },
+      "deu_recht_06": { themenfeld: "deu_rechtschreibung", frage: "Wie schreibt man das Wort richtig?", optionen: ["Zucker", "Zuker", "Zukker", "Zukcer"], antwort: "Zucker", hinweis: "Nach kurzem Vokal: ck." },
+      "deu_recht_07": { themenfeld: "deu_rechtschreibung", frage: "Wie schreibt man das Wort richtig?", optionen: ["Katse", "Kazze", "Katze", "Katzze"], antwort: "Katze", hinweis: "Nach kurzem Vokal: tz." },
+      // === Deutsch — Wortarten ===
+      "deu_wortarten_01": { themenfeld: "deu_wortarten", frage: "Welches Wort ist ein Nomen?", optionen: ["laufen", "schön", "Apfel", "und"], antwort: "Apfel", hinweis: "Nomen sind Dinge, Personen, Tiere oder Pflanzen." },
+      "deu_wortarten_02": { themenfeld: "deu_wortarten", frage: "Welches Wort ist ein Verb (Tunwort)?", optionen: ["Baum", "rennen", "blau", "schnell"], antwort: "rennen", hinweis: "Verben sagen, was jemand tut." },
+      "deu_wortarten_03": { themenfeld: "deu_wortarten", frage: "Welches Wort ist ein Adjektiv (Wie-Wort)?", optionen: ["singen", "Katze", "fröhlich", "Tisch"], antwort: "fröhlich", hinweis: "Adjektive beschreiben, wie etwas ist." },
+      // === Deutsch — Artikel ===
+      "deu_artikel_01": { themenfeld: "deu_artikel", frage: "Welcher Artikel passt? ___ Sonne", optionen: ["der", "die", "das"], antwort: "die", hinweis: "Sonne ist weiblich → die." },
+      "deu_artikel_02": { themenfeld: "deu_artikel", frage: "Welcher Artikel passt? ___ Hund", optionen: ["der", "die", "das"], antwort: "der", hinweis: "Hund ist männlich → der." },
+      "deu_artikel_03": { themenfeld: "deu_artikel", frage: "Welcher Artikel passt? ___ Kind", optionen: ["der", "die", "das"], antwort: "das", hinweis: "Kind ist sächlich → das." },
+      "deu_artikel_04": { themenfeld: "deu_artikel", frage: "Welcher Artikel passt? ___ Lehrerin", optionen: ["der", "die", "das"], antwort: "die", hinweis: "Lehrerin ist weiblich → die." },
+      // === Deutsch — Silben ===
+      "deu_silben_01": { themenfeld: "deu_silben", frage: "Wie viele Silben hat 'Sonnenblume'?", optionen: ["2", "3", "4", "5"], antwort: "4", hinweis: "Son-nen-blu-me — vier Silben." },
+      "deu_silben_02": { themenfeld: "deu_silben", frage: "Wie viele Silben hat 'Schule'?", optionen: ["1", "2", "3", "4"], antwort: "2", hinweis: "Schu-le — zwei Silben." },
+      // === Deutsch — Satzzeichen & Reime ===
+      "deu_satz_01": { themenfeld: "deu_satz", frage: "Welches Satzzeichen kommt ans Ende?  'Wie heißt du'", optionen: [".", "?", "!", ","], antwort: "?", hinweis: "Eine Frage endet mit '?'." },
+      "deu_satz_02": { themenfeld: "deu_satz", frage: "Welches Satzzeichen kommt ans Ende?  'Pass auf'", optionen: [".", "?", "!", ","], antwort: "!", hinweis: "Bei Ausrufen passt '!'." },
+      "deu_satz_03": { themenfeld: "deu_satz", frage: "Was reimt sich auf 'Haus'?", optionen: ["Hund", "Maus", "Tisch", "Auto"], antwort: "Maus", hinweis: "Haus — Maus, beide enden auf -aus." },
+      "deu_satz_04": { themenfeld: "deu_satz", frage: "Was reimt sich auf 'Katze'?", optionen: ["Hund", "Tatze", "Vogel", "Fisch"], antwort: "Tatze", hinweis: "Katze — Tatze, beide enden auf -atze." },
+      // === Deutsch — Mehrzahl ===
+      "deu_mehrzahl_01": { themenfeld: "deu_mehrzahl", frage: "Wie heißt die Mehrzahl von 'Buch'?", optionen: ["Buchs", "Bücher", "Buche", "Buchen"], antwort: "Bücher", hinweis: "Ein Buch — viele Bücher." },
+      "deu_mehrzahl_02": { themenfeld: "deu_mehrzahl", frage: "Wie heißt die Mehrzahl von 'Kind'?", optionen: ["Kinde", "Kinder", "Kindes", "Kindern"], antwort: "Kinder", hinweis: "Ein Kind — viele Kinder." },
+
+      // === HSU — Bienen ===
+      "hsu_bienen_01": { themenfeld: "hsu_bienen", frage: "Wie viele Beine hat eine Biene?", optionen: ["4", "6", "8", "10"], antwort: "6", hinweis: "Bienen sind Insekten — alle Insekten haben 6 Beine." },
+      "hsu_bienen_02": { themenfeld: "hsu_bienen", frage: "Wie viele Flügel hat eine Biene?", optionen: ["2", "4", "6", "8"], antwort: "4", hinweis: "Zwei vorne und zwei hinten — zusammen 4 Flügel." },
+      "hsu_bienen_03": { themenfeld: "hsu_bienen", frage: "In wie viele Teile ist der Körper einer Biene geteilt?", optionen: ["2", "3", "4", "5"], antwort: "3", hinweis: "Kopf, Brust und Hinterleib — drei Teile." },
+      "hsu_bienen_04": { themenfeld: "hsu_bienen", frage: "Womit sammelt die Biene Blütenstaub?", optionen: ["Mit den Flügeln", "Mit den Fühlern", "Mit den Beinen", "Mit dem Stachel"], antwort: "Mit den Beinen", hinweis: "An den Hinterbeinen sind die 'Pollenhöschen'." },
+      "hsu_bienen_05": { themenfeld: "hsu_bienen", frage: "Womit riecht und fühlt die Biene?", optionen: ["Mit den Augen", "Mit den Fühlern", "Mit den Flügeln", "Mit dem Stachel"], antwort: "Mit den Fühlern", hinweis: "Die Fühler heißen auch Antennen." },
+      "hsu_bienen_06": { themenfeld: "hsu_bienen", frage: "Womit saugt die Biene den Nektar aus den Blüten?", optionen: ["Mit dem Stachel", "Mit den Beinen", "Mit dem Rüssel", "Mit den Fühlern"], antwort: "Mit dem Rüssel", hinweis: "Der Rüssel ist wie ein Strohhalm." },
+      "hsu_bienen_07": { themenfeld: "hsu_bienen", frage: "Wer legt im Bienenvolk die Eier?", optionen: ["Die Arbeiterin", "Die Drohne", "Die Königin", "Der Imker"], antwort: "Die Königin", hinweis: "Es gibt nur EINE Königin pro Volk." },
+      "hsu_bienen_08": { themenfeld: "hsu_bienen", frage: "Wie nennt man die männlichen Bienen?", optionen: ["Drohnen", "Wespen", "Hummeln", "Königinnen"], antwort: "Drohnen", hinweis: "Drohnen haben keinen Stachel." },
+      "hsu_bienen_09": { themenfeld: "hsu_bienen", frage: "Wer macht im Bienenvolk fast die ganze Arbeit?", optionen: ["Die Königin", "Die Drohnen", "Die Arbeiterinnen", "Der Imker"], antwort: "Die Arbeiterinnen", hinweis: "Tausende Arbeiterinnen kümmern sich um alles." },
+      "hsu_bienen_10": { themenfeld: "hsu_bienen", frage: "Wie viele Königinnen gibt es in einem Bienenvolk?", optionen: ["Eine", "Zwei", "Zehn", "Hundert"], antwort: "Eine", hinweis: "Nur eine einzige Königin regiert das Volk." },
+      "hsu_bienen_11": { themenfeld: "hsu_bienen", frage: "Wo wohnen Honigbienen?", optionen: ["Im Ameisenhaufen", "Im Bienenstock", "In der Erde", "Im Vogelnest"], antwort: "Im Bienenstock", hinweis: "Imker bauen Bienenkästen — das sind Bienenstöcke." },
+      "hsu_bienen_12": { themenfeld: "hsu_bienen", frage: "Wie heißen die kleinen Räume, in denen Bienen Honig lagern und ihre Babys großziehen?", optionen: ["Höhlen", "Waben", "Nester", "Töpfe"], antwort: "Waben", hinweis: "Die sechseckigen Zellen heißen Waben." },
+      "hsu_bienen_13": { themenfeld: "hsu_bienen", frage: "Welche Form haben die Waben einer Biene?", optionen: ["Rund", "Viereckig", "Sechseckig", "Dreieckig"], antwort: "Sechseckig", hinweis: "Sechs Ecken — eine schlaue Form, die viel Platz spart." },
+      "hsu_bienen_14": { themenfeld: "hsu_bienen", frage: "Was machen Bienen aus Nektar?", optionen: ["Milch", "Honig", "Wasser", "Saft"], antwort: "Honig", hinweis: "Im Bienenstock wird Nektar zu Honig." },
+      "hsu_bienen_15": { themenfeld: "hsu_bienen", frage: "Woraus bauen Bienen ihre Waben?", optionen: ["Aus Holz", "Aus Wachs", "Aus Erde", "Aus Papier"], antwort: "Aus Wachs", hinweis: "Bienen schwitzen das Wachs selbst aus dem Bauch." },
+      "hsu_bienen_16": { themenfeld: "hsu_bienen", frage: "Warum sind Bienen wichtig für die Natur?", optionen: ["Sie machen Lärm", "Sie bestäuben Blüten", "Sie fressen Schädlinge", "Sie bauen Nester für Vögel"], antwort: "Sie bestäuben Blüten", hinweis: "Ohne Bestäubung gäbe es kaum Obst und Gemüse." },
+      "hsu_bienen_17": { themenfeld: "hsu_bienen", frage: "Was heißt 'bestäuben'?", optionen: ["Staub wegmachen", "Blütenstaub von Blüte zu Blüte tragen", "Honig sammeln", "Wasser holen"], antwort: "Blütenstaub von Blüte zu Blüte tragen", hinweis: "So entstehen aus Blüten Früchte." },
+      "hsu_bienen_18": { themenfeld: "hsu_bienen", frage: "Was passiert, wenn keine Bienen mehr Blüten bestäuben?", optionen: ["Es regnet mehr", "Es wachsen weniger Früchte", "Es wird wärmer", "Nichts"], antwort: "Es wachsen weniger Früchte", hinweis: "Äpfel, Kirschen, Erdbeeren brauchen Bienen." },
+      "hsu_bienen_19": { themenfeld: "hsu_bienen", frage: "Wer kümmert sich um Bienen und holt den Honig?", optionen: ["Der Bauer", "Der Förster", "Der Imker", "Der Gärtner"], antwort: "Der Imker", hinweis: "Imker pflegen die Bienenvölker." },
+      "hsu_bienen_20": { themenfeld: "hsu_bienen", frage: "Wie tanzen Bienen, um anderen den Weg zu Blüten zu zeigen?", optionen: ["Sie pfeifen", "Sie schreiben", "Sie tanzen einen Schwänzeltanz", "Sie rufen laut"], antwort: "Sie tanzen einen Schwänzeltanz", hinweis: "Mit dem Tanz erzählen sie, wo das Futter ist." },
+      "hsu_bienen_21": { themenfeld: "hsu_bienen", frage: "Was sammeln Bienen in den Blüten?", optionen: ["Nur Wasser", "Nektar und Pollen", "Honig", "Wachs"], antwort: "Nektar und Pollen", hinweis: "Nektar wird zu Honig, Pollen ist das 'Brot' der Bienen." },
+      "hsu_bienen_22": { themenfeld: "hsu_bienen", frage: "Was passiert mit der Biene, wenn sie einen Menschen sticht?", optionen: ["Nichts", "Sie stirbt", "Sie wird größer", "Sie fliegt weg"], antwort: "Sie stirbt", hinweis: "Der Stachel bleibt stecken und reißt der Biene den Hinterleib auf." },
+      "hsu_bienen_23": { themenfeld: "hsu_bienen", frage: "Wie verhältst du dich am besten, wenn eine Biene um dich herumfliegt?", optionen: ["Schnell wegrennen", "Mit den Armen wedeln", "Ruhig stehen bleiben", "Nach ihr schlagen"], antwort: "Ruhig stehen bleiben", hinweis: "Bienen stechen nur, wenn sie sich bedroht fühlen." },
+      "hsu_bienen_24": { themenfeld: "hsu_bienen", frage: "Welche Bienen haben einen Stachel?", optionen: ["Nur die Königin und die Arbeiterinnen", "Nur die Drohnen", "Alle Bienen", "Keine Biene"], antwort: "Nur die Königin und die Arbeiterinnen", hinweis: "Die männlichen Drohnen haben keinen Stachel." },
+      "hsu_bienen_25": { themenfeld: "hsu_bienen", frage: "Was macht ein Bienenvolk im Winter?", optionen: ["Es schläft draußen", "Es fliegt nach Süden", "Es bleibt im Stock zusammen und wärmt sich", "Es stirbt komplett"], antwort: "Es bleibt im Stock zusammen und wärmt sich", hinweis: "Die Bienen bilden eine warme 'Wintertraube'." },
+
+      // === HSU — Jahreszeiten ===
+      "hsu_jahreszeiten_01": { themenfeld: "hsu_jahreszeiten", frage: "Welche Jahreszeit kommt nach dem Frühling?", optionen: ["Winter", "Herbst", "Sommer", "Frühling"], antwort: "Sommer", hinweis: "Frühling → Sommer → Herbst → Winter." },
+      "hsu_jahreszeiten_02": { themenfeld: "hsu_jahreszeiten", frage: "Wann fallen die Blätter von den Bäumen?", optionen: ["Frühling", "Sommer", "Herbst", "Winter"], antwort: "Herbst", hinweis: "Im Herbst werden Blätter bunt und fallen." },
+      "hsu_jahreszeiten_03": { themenfeld: "hsu_jahreszeiten", frage: "In welcher Jahreszeit blühen die meisten Blumen zuerst?", optionen: ["Winter", "Frühling", "Herbst", "Sommer"], antwort: "Frühling", hinweis: "Im Frühling erwacht die Natur." },
+      // === HSU — Tiere ===
+      "hsu_tiere_01": { themenfeld: "hsu_tiere", frage: "Welches Tier ist ein Säugetier?", optionen: ["Forelle", "Adler", "Reh", "Frosch"], antwort: "Reh", hinweis: "Säugetiere säugen ihre Jungen mit Milch." },
+      "hsu_tiere_02": { themenfeld: "hsu_tiere", frage: "Was frisst ein Igel am liebsten?", optionen: ["Gras", "Würmer und Insekten", "Fische", "Nüsse"], antwort: "Würmer und Insekten", hinweis: "Der Igel ist ein Insektenfresser." },
+      "hsu_tiere_03": { themenfeld: "hsu_tiere", frage: "Welches Tier hält Winterschlaf?", optionen: ["Eichhörnchen", "Reh", "Igel", "Fuchs"], antwort: "Igel", hinweis: "Igel schlafen den ganzen Winter durch." },
+      "hsu_tiere_04": { themenfeld: "hsu_tiere", frage: "Wie viele Beine hat eine Spinne?", optionen: ["6", "8", "10", "4"], antwort: "8", hinweis: "Spinnen haben immer 8 Beine, Insekten nur 6." },
+      "hsu_tiere_05": { themenfeld: "hsu_tiere", frage: "Wie nennt man das Junge vom Schwein?", optionen: ["Kalb", "Lamm", "Ferkel", "Fohlen"], antwort: "Ferkel", hinweis: "Das Schweinejunge heißt Ferkel." },
+      "hsu_tiere_06": { themenfeld: "hsu_tiere", frage: "Wie nennt man das Junge vom Pferd?", optionen: ["Fohlen", "Kalb", "Welpe", "Küken"], antwort: "Fohlen", hinweis: "Ein junges Pferd heißt Fohlen." },
+      // === HSU — Bayern & Heimat ===
+      "hsu_heimat_01": { themenfeld: "hsu_heimat", frage: "In welchem Bundesland liegt Berg?", optionen: ["Hessen", "Bayern", "Sachsen", "Baden-Württemberg"], antwort: "Bayern", hinweis: "Berg liegt in Bayern." },
+      "hsu_heimat_02": { themenfeld: "hsu_heimat", frage: "Wie heißt die Hauptstadt von Bayern?", optionen: ["Nürnberg", "Augsburg", "München", "Regensburg"], antwort: "München", hinweis: "München ist die Landeshauptstadt." },
+      "hsu_heimat_03": { themenfeld: "hsu_heimat", frage: "Welche Farben hat die bayerische Flagge?", optionen: ["Rot-Gold", "Schwarz-Rot-Gold", "Weiß-Blau", "Grün-Weiß"], antwort: "Weiß-Blau", hinweis: "Bayern hat eine weiß-blaue Rautenflagge." },
+      // === HSU — Verkehr ===
+      "hsu_verkehr_01": { themenfeld: "hsu_verkehr", frage: "Was bedeutet eine rote Ampel für Fußgänger?", optionen: ["Gehen", "Warten", "Schnell laufen", "Egal"], antwort: "Warten", hinweis: "Rot heißt immer stehenbleiben." },
+      "hsu_verkehr_02": { themenfeld: "hsu_verkehr", frage: "Wo überquerst du am sichersten die Straße?", optionen: ["Zwischen Autos", "Am Zebrastreifen", "Mitten auf der Straße", "Hinter einem Bus"], antwort: "Am Zebrastreifen", hinweis: "Zebrastreifen sind extra für Fußgänger." },
+      "hsu_verkehr_03": { themenfeld: "hsu_verkehr", frage: "Auf welcher Seite des Gehwegs gehst du am sichersten?", optionen: ["Nah am Auto", "Nah an Häusern", "In der Mitte", "Auf der Straße"], antwort: "Nah an Häusern", hinweis: "Möglichst weit weg von fahrenden Autos." },
+      // === HSU — Körper ===
+      "hsu_koerper_01": { themenfeld: "hsu_koerper", frage: "Welches Organ pumpt das Blut durch den Körper?", optionen: ["Lunge", "Herz", "Magen", "Leber"], antwort: "Herz", hinweis: "Das Herz schlägt Tag und Nacht." },
+      "hsu_koerper_02": { themenfeld: "hsu_koerper", frage: "Womit atmen wir?", optionen: ["Mit dem Magen", "Mit dem Herzen", "Mit der Lunge", "Mit der Leber"], antwort: "Mit der Lunge", hinweis: "Die Lunge holt Luft in den Körper." },
+      "hsu_koerper_03": { themenfeld: "hsu_koerper", frage: "Wie viele Zähne hat ein Erwachsener normal?", optionen: ["20", "24", "32", "40"], antwort: "32", hinweis: "Kinder haben weniger — Milchzähne." },
+      // === HSU — Zeit ===
+      "hsu_zeit_01": { themenfeld: "hsu_zeit", frage: "Wie viele Stunden hat ein Tag?", optionen: ["12", "24", "20", "60"], antwort: "24", hinweis: "Ein Tag und eine Nacht zusammen: 24 Stunden." },
+      "hsu_zeit_02": { themenfeld: "hsu_zeit", frage: "Wie viele Minuten hat eine Stunde?", optionen: ["30", "50", "60", "100"], antwort: "60", hinweis: "Eine Stunde besteht aus 60 Minuten." },
+      "hsu_zeit_03": { themenfeld: "hsu_zeit", frage: "Welcher Tag kommt nach Mittwoch?", optionen: ["Dienstag", "Donnerstag", "Freitag", "Sonntag"], antwort: "Donnerstag", hinweis: "Mo–Di–Mi–Do–Fr–Sa–So." },
+      "hsu_zeit_04": { themenfeld: "hsu_zeit", frage: "Wie viele Monate hat ein Jahr?", optionen: ["10", "11", "12", "14"], antwort: "12", hinweis: "Januar bis Dezember — 12 Monate." },
+      // === HSU — Pflanzen ===
+      "hsu_pflanzen_01": { themenfeld: "hsu_pflanzen", frage: "Was brauchen Pflanzen zum Wachsen?", optionen: ["Nur Wasser", "Licht, Wasser und Erde", "Nur Licht", "Schokolade"], antwort: "Licht, Wasser und Erde", hinweis: "Pflanzen brauchen alle drei zusammen." },
+      "hsu_pflanzen_02": { themenfeld: "hsu_pflanzen", frage: "Welcher Teil der Pflanze ist unter der Erde?", optionen: ["Blüte", "Stängel", "Wurzel", "Blatt"], antwort: "Wurzel", hinweis: "Die Wurzel hält die Pflanze und nimmt Wasser auf." },
+    };
+
+    // === Phase-B-Inhalte (Daten liegen in separatem <script>-Tag oben) ===
+    THEMENFELDER.push(...window.LERNSPASS_THEMENFELDER_NEU);
+    Object.assign(FRAGEN_KATALOG, window.LERNSPASS_FRAGEN_NEU);
 
     // Index: Themenfeld → Liste aller Frage-IDs
     const FRAGEN_NACH_THEMENFELD = {};

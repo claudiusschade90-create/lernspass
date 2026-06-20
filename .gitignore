@@ -4,3 +4,6 @@ cloud-prompt.md
 # Python-Cache
 __pycache__/
 *.pyc
+
+# Lokale einmalige Tools
+restructure.py
